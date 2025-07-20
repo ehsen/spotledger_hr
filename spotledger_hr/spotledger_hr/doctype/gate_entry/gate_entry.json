@@ -1,0 +1,87 @@
+{
+    "actions": [],
+    "allow_import": 1,
+    "autoname": "format:{employee}-{#}",
+    "creation": "2022-08-19 22:32:11.085099",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+     "employee",
+     "employee_name",
+     "attendance_date",
+     "check_in",
+     "check_out",
+     "remote_db_id"
+    ],
+    "fields": [
+     {
+      "fieldname": "employee",
+      "fieldtype": "Link",
+      "ignore_user_permissions": 1,
+      "in_list_view": 1,
+      "label": "Employee",
+      "options": "Employee",
+      "reqd": 1
+     },
+     {
+      "fieldname": "attendance_date",
+      "fieldtype": "Date",
+      "ignore_user_permissions": 1,
+      "label": "Attendance Date",
+      "reqd": 1
+     },
+     {
+      "fieldname": "check_in",
+      "fieldtype": "Datetime",
+      "ignore_user_permissions": 1,
+      "label": "Check IN"
+     },
+     {
+      "fieldname": "check_out",
+      "fieldtype": "Datetime",
+      "ignore_user_permissions": 1,
+      "label": "Check Out"
+     },
+     {
+      "fieldname": "remote_db_id",
+      "fieldtype": "Int",
+      "ignore_user_permissions": 1,
+      "label": "Remote DB ID",
+      "reqd": 1
+     },
+     {
+      "fetch_from": "employee.employee_name",
+      "fieldname": "employee_name",
+      "fieldtype": "Data",
+      "ignore_user_permissions": 1,
+      "label": "Employee Name",
+      "read_only": 1
+     }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2023-09-01 10:34:27.927270",
+    "modified_by": "Administrator",
+    "module": "Spotledger HR",
+    "name": "Gate Entry",
+    "naming_rule": "Expression",
+    "owner": "Administrator",
+    "permissions": [
+     {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+     }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+   }

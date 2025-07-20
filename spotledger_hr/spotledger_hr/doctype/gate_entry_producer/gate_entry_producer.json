@@ -1,0 +1,51 @@
+{
+    "actions": [],
+    "autoname": "field:company",
+    "creation": "2023-05-30 09:58:58.552508",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+     "company",
+     "last_update"
+    ],
+    "fields": [
+     {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "label": "Company",
+      "options": "Company",
+      "unique": 1
+     },
+     {
+      "fieldname": "last_update",
+      "fieldtype": "Datetime",
+      "label": "Last Update"
+     }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2023-05-30 09:58:58.552508",
+    "modified_by": "Administrator",
+    "module": "Spotledger HR",
+    "name": "Gate Entry Producer",
+    "naming_rule": "By fieldname",
+    "owner": "Administrator",
+    "permissions": [
+     {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+     }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+   }
