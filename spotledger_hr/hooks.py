@@ -242,3 +242,18 @@ app_license = "mit"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+fixtures = [
+
+     {
+        "dt": "Custom Field",  # DocType for the fixture
+        "filters": [
+            ["module", "=", "Spotledger Hr"]  # Only include fields from this module
+        ]
+    },
+    {
+        "dt": "Property Setter",  # DocType for the fixture
+        "filters": [
+            ["module", "=", "Spotledger Hr"]  # Only include fields from this module
+        ]
+    },
+]
