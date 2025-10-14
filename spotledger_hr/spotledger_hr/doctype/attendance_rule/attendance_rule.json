@@ -9,7 +9,7 @@
     "engine": "InnoDB",
     "autoname": "field:company",
     "sort_field": "modified",
-    "sort_order": "desc",
+    "sort_order": "DESC",
     "istable": 0,
     "read_only": 0,
     "title_field": "company",
@@ -44,6 +44,18 @@
         "label": "Required Working Hours (Hrs)",
         "default": 8.5,
         "reqd": 1
+      },
+      {
+        "fieldname": "friday_start_time",
+        "fieldtype": "Time",
+        "label": "Friday Start Time",
+        "description": "Start time for Friday (if different from regular start time)"
+      },
+      {
+        "fieldname": "friday_end_time",
+        "fieldtype": "Time",
+        "label": "Friday End Time",
+        "description": "End time for Friday (if different from regular end time)"
       },
       {
         "fieldname": "tab_grace",

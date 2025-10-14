@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpotLedger ERP - Complete Solution for Pakistani Factories</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.95;
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px 40px;
+            background: #f8f9fa;
+            border-bottom: 3px solid #1e3c72;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 2.2em;
+            color: #1e3c72;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #1e3c72;
+        }
+
+        .section-subtitle {
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .app-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            border-color: #1e3c72;
+        }
+
+        .app-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .app-title {
+            font-size: 1.5em;
+            color: #1e3c72;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .app-description {
+            font-size: 0.95em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .features-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .features-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            font-size: 0.9em;
+        }
+
+        .features-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .value-prop {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-size: 1.1em;
+        }
+
+        .comparison-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .comparison-table tr:hover {
+            background: #e3f2fd;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .highlight-box h3 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+
+        .deployment-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .deployment-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 2px solid #e0e0e0;
+        }
+
+        .deployment-card h4 {
+            color: #1e3c72;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+
+        .deployment-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .deployment-card li {
+            padding: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .deployment-card li::before {
+            content: '☁️';
+            position: absolute;
+            left: 0;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .cta-section h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .cta-section p {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #f5576c;
+            padding: 15px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .footer {
+            background: #2d3748;
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .footer-section h4 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .footer-section p {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 5px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+            .app-card:hover {
+                transform: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            .header p {
+                font-size: 1em;
+            }
+            .section-title {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏭 SpotLedger ERP</h1>
+            <p>Complete ERPNext 15 Solution for Pakistani Factories</p>
+            <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                Tax Compliance • Import Management • Manufacturing • Advanced HR
+            </p>
+        </div>
+
+        <div class="hero-stats">
+            
+            <div class="stat-box">
+                <div class="stat-number">1-1000+</div>
+                <div class="stat-label">Users Supported</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">Cloud/Local</div>
+                <div class="stat-label">Deployment Options</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">4 Custom Apps</div>
+                <div class="stat-label">Pakistan-Specific</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">🎯 What We Offer</h2>
+                <p class="section-subtitle">
+                    A complete, enterprise-grade ERP system built on ERPNext 15 with Pakistan-specific customizations 
+                    for manufacturing, taxation, import management, and HR. Designed specifically for Pakistani factories 
+                    who need more than basic accounting software.
+                </p>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">🇵🇰 Pakistan-Specific Custom Apps</h2>
+                
+                <div class="apps-grid">
+                    <div class="app-card">
+                        <div class="app-icon">📊</div>
+                        <div class="app-title">TaxCompliancePakistan</div>
+                        <div class="app-description">Complete FBR compliance automation</div>
+                        <ul class="features-list">
+                            <li>Sales Tax (automatic FBR rates)</li>
+                            <li>Withholding Tax (WHT by sections)</li>
+                            <li>WHT Exemptions management</li>
+                            <li>Annex A & C Reports</li>
+                            <li>Tax Categories pre-configured</li>
+                            <li>Purchase Invoice WHT auto-calc</li>
+                        </ul>
+                        <div class="value-prop">
+                            💰 No manual tax calculations. No FBR filing errors. Audit-ready at one click.
+                        </div>
+                    </div>
+
+                    <div class="app-card">
+                        <div class="app-icon">🚢</div>
+                        <div class="app-title">ImportManager</div>
+                        <div class="app-description">End-to-end import workflow & costing</div>
+                        <ul class="features-list">
+                            <li>Letter of Credit (LC) management</li>
+                            <li>Import Documents tracking</li>
+                            <li>Customs duties calculation</li>
+                            <li>Charge allocation across items</li>
+                            <li>LC Outstanding reports</li>
+                            <li>Landed cost automation</li>
+                            <li>Complete workflow tracking</li>
+                        </ul>
+                        <div class="value-prop">
+                            💰 Know true import costs. Track every rupee from LC to warehouse. No surprises.
+                        </div>
+                    </div>
+
+                    <div class="app-card">
+                        <div class="app-icon">👥</div>
+                        <div class="app-title">SpotLedger HR</div>
+                        <div class="app-description">Advanced factory attendance system</div>
+                        <ul class="features-list">
+                            <li>Grace periods (check-in/out)</li>
+                            <li>Friday logic + prayer break</li>
+                            <li>Overtime auto-calculation</li>
+                            <li>Deficiency tracking</li>
+                            <li>Gazetted holiday detection</li>
+                            <li>Bulk attendance manager</li>
+                            <li>Biometric integration</li>
+                            <li>Overnight shift handling</li>
+                        </ul>
+                        <div class="value-prop">
+                            💰 Save 20+ HR hours/month. Zero disputes. Transparent calculations. Payroll-ready.
+                        </div>
+                    </div>
+
+                    <div class="app-card">
+                        <div class="app-icon">🏭</div>
+                        <div class="app-title">Manufacturing Costing</div>
+                        <div class="app-description">Advanced product costing & expense allocation</div>
+                        <ul class="features-list">
+                            <li>Product costing sheets</li>
+                            <li>Material specification tracking</li>
+                            <li>Overhead expense allocation</li>
+                            <li>Work order integration</li>
+                            <li>Quality inspection by serial</li>
+                            <li>Multi-level BOM costing</li>
+                            <li>Urdu-enabled shop floor reports</li>
+                        </ul>
+                        <div class="value-prop">
+                            💰 Know exact cost per product. Price accurately. Track quality by serial number.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">📦 Complete Features (Included)</h2>
+                <div class="apps-grid">
+                    <div class="deployment-card">
+                        <h4>Manufacturing</h4>
+                        <ul>
+                            <li>Bill of Materials (BOM)</li>
+                            <li>Work Orders</li>
+                            <li>Job Cards</li>
+                            <li>Subcontracting</li>
+                            <li>Production Planning</li>
+                        </ul>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>Inventory</h4>
+                        <ul>
+                            <li>Multi-warehouse</li>
+                            <li>Batch & Serial tracking</li>
+                            <li>Stock reconciliation</li>
+                            <li>Reorder levels</li>
+                            <li>Stock transfers</li>
+                        </ul>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>Sales & Purchase</h4>
+                        <ul>
+                            <li>Quotations & Orders</li>
+                            <li>Invoices & Receipts</li>
+                            <li>Pricing rules</li>
+                            <li>Multi-currency</li>
+                            <li>Payment terms</li>
+                        </ul>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>Accounting</h4>
+                        <ul>
+                            <li>General Ledger</li>
+                            <li>P&L / Balance Sheet</li>
+                            <li>Bank reconciliation</li>
+                            <li>Budgeting</li>
+                            <li>Multi-company</li>
+                        </ul>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>CRM & Projects</h4>
+                        <ul>
+                            <li>Lead tracking</li>
+                            <li>Customer portal</li>
+                            <li>Project management</li>
+                            <li>Timesheets</li>
+                            <li>Expense claims</li>
+                        </ul>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>HRMS</h4>
+                        <ul>
+                            <li>Employee records</li>
+                            <li>Leave management</li>
+                            <li>Payroll processing</li>
+                            <li>Expense claims</li>
+                            <li>Appraisals</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight-box">
+                <h3>☁️ Flexible Deployment</h3>
+                <div class="deployment-options">
+                    <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                        <h4 style="color: white; margin-bottom: 15px;">Cloud Hosting</h4>
+                        <p style="font-size: 0.9em;">✓ AWS/DigitalOcean hosting<br>
+                        ✓ 99.9% uptime<br>
+                        ✓ Automatic backups<br>
+                        ✓ Access from anywhere<br>
+                        ✓ Monthly subscription<br>
+                        ✓ No server management</p>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                        <h4 style="color: white; margin-bottom: 15px;">On-Premise</h4>
+                        <p style="font-size: 0.9em;">✓ Your own servers<br>
+                        ✓ Complete data ownership<br>
+                        ✓ No internet dependency<br>
+                        ✓ Local network speed<br>
+                        ✓ One-time setup cost<br>
+                        ✓ Full control</p>
+                    </div>
+                </div>
+                <p style="margin-top: 20px; font-size: 1.1em; text-align: center;">
+                    <strong>Hybrid Option Available:</strong> Cloud + local backup server for maximum security
+                </p>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">📊 Comparison with Other ERPs</h2>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Other ERP Systems</th>
+                            <th>SpotLedger ERPNext</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                       
+                        <tr>
+                            <td><strong>User Licensing</strong></td>
+                            <td>Per-user fees kill ROI</td>
+                            <td>Unlimited users option</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ownership</strong></td>
+                            <td>Vendor lock-in</td>
+                            <td>Open-source (you own it)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Pakistan Features</strong></td>
+                            <td>Generic international</td>
+                            <td>Pakistan Specific</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Modules</strong></td>
+                            <td>Sold separately</td>
+                            <td>Complete suite included</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Deployment</strong></td>
+                            <td>Cloud OR on-premise</td>
+                            <td>Hybrid possible</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mobile Access</strong></td>
+                            <td>Old UI, slow</td>
+                            <td>Modern, mobile-first</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Customization</strong></td>
+                            <td>Vendor-dependent</td>
+                            <td>Easy (Python/JavaScript)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Scalability</strong></td>
+                            <td>Upgrade fees for growth</td>
+                            <td>1 to 1000+ users seamlessly without added cost</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">🎯 Perfect For These Industries</h2>
+                <div class="apps-grid">
+                    <div class="deployment-card">
+                        <h4>🏭 Complex Manufacturing</h4>
+                        <p>Advanced costing for multi-component products. Material tracking, overhead allocation, quality control.</p>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>🚢 Import-Heavy Businesses</h4>
+                        <p>LC management + customs duty automation saves 30+ hours/month.</p>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>🧵 Textile Mills</h4>
+                        <p>Shift management, bulk attendance, piece-rate ready, quality tracking.</p>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>🍞 Food Processing</h4>
+                        <p>Batch tracking, quality inspection, expiry management, FBR compliance.</p>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>🔩 Plastic/Metal Fabrication</h4>
+                        <p>BOM, work orders, job cards, subcontracting, material tracking.</p>
+                    </div>
+                    <div class="deployment-card">
+                        <h4>👷 Any Factory 50+ Workers</h4>
+                        <p>Advanced attendance alone saves HR department 20+ hours monthly.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight-box" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                <h3>💰 Return on Investment (ROI)</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <div>
+                        <h4 style="color: white; margin-bottom: 10px;">⏰ Time Saved</h4>
+                        <p style="font-size: 0.95em;">
+                            • HR: 25 hours/month<br>
+                            • Accounts: 40 hours/month<br>
+                            • Import: 30 hours/month<br>
+                            • Management: Real-time dashboards
+                        </p>
+                    </div>
+                    <div>
+                        <h4 style="color: white; margin-bottom: 10px;">📉 Error Reduction</h4>
+                        <p style="font-size: 0.95em;">
+                            • Tax errors: 95% reduction<br>
+                            • Attendance disputes: 80% reduction<br>
+                            • Import costing: Eliminated<br>
+                            • Inventory discrepancies: 60% reduction
+                        </p>
+                    </div>
+                    <div>
+                        <h4 style="color: white; margin-bottom: 10px;">💵 Financial Impact</h4>
+                        <p style="font-size: 0.95em;">
+                            • Reduce FBR penalties<br>
+                            • Better pricing decisions<br>
+                            • Reduce inventory write-offs<br>
+                            • Month-end: 5 days → 2 days
+                        </p>
+                    </div>
+                </div>
+                <p style="margin-top: 25px; font-size: 1.3em; text-align: center; font-weight: bold;">
+                    Typical Payback Period: 8-12 months
+                </p>
+            </div>
+
+           
+
+        
+            <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px; margin-top: 20px;">
+                <p><strong>SpotLedger - Complete ERP for Pakistani Businesses</strong></p>
+                <p style="margin-top: 10px; opacity: 0.8; font-size: 0.9em;">
+                    Built for Pakistan. Scaled globally. Owned by you.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

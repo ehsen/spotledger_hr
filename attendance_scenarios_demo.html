@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Calculation Scenarios - Regular Profile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .rule-config {
+            background: #f8f9fa;
+            padding: 30px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .rule-config h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .config-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .config-item label {
+            font-weight: 600;
+            color: #666;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .config-item value {
+            font-size: 1.2em;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .scenarios {
+            padding: 40px;
+        }
+
+        .scenario {
+            margin-bottom: 40px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .scenario:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .scenario-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scenario-title {
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .scenario-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .scenario-body {
+            padding: 25px;
+            background: white;
+        }
+
+        .time-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .time-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .time-icon {
+            width: 40px;
+            height: 40px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .time-details label {
+            display: block;
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
+        .time-details value {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .result-card.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .result-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .result-card.info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .result-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .result-unit {
+            font-size: 0.8em;
+            opacity: 0.8;
+        }
+
+        .notes {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 5px;
+        }
+
+        .notes h4 {
+            color: #856404;
+            margin-bottom: 8px;
+        }
+
+        .notes p {
+            color: #856404;
+            margin-bottom: 5px;
+        }
+
+        .legend {
+            margin: 30px 40px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .legend h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .footer {
+            background: #2d3748;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .scenario:hover {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Attendance Calculation Scenarios</h1>
+            <p>Comprehensive demonstration of attendance rule calculations using Regular Profile</p>
+        </div>
+
+        <div class="rule-config">
+            <h2>⚙️ Attendance Rule Configuration - Regular Profile</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label>Factory Start Time</label>
+                    <value>08:00 AM</value>
+                </div>
+                <div class="config-item">
+                    <label>Factory End Time</label>
+                    <value>05:00 PM</value>
+                </div>
+                <div class="config-item">
+                    <label>Required Hours</label>
+                    <value>8.5 hours</value>
+                </div>
+                <div class="config-item">
+                    <label>Check-in Grace Period</label>
+                    <value>15 minutes</value>
+                </div>
+                <div class="config-item">
+                    <label>Check-out Grace Period</label>
+                    <value>15 minutes</value>
+                </div>
+                <div class="config-item">
+                    <label>Break Duration</label>
+                    <value>30 minutes</value>
+                </div>
+                <div class="config-item">
+                    <label>Regular Break Time</label>
+                    <value>12:30 PM - 01:00 PM</value>
+                </div>
+                <div class="config-item">
+                    <label>Friday Break Time</label>
+                    <value>01:30 PM - 02:30 PM</value>
+                </div>
+            </div>
+        </div>
+
+        <div class="scenarios">
+            <!-- Scenario 1: Perfect Attendance -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 1: Perfect Attendance</div>
+                    <div class="scenario-badge">✓ Ideal</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>08:00 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕔</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>05:00 PM</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">8.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card success">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">9.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Break Deducted</div>
+                            <div class="result-value">30</div>
+                            <div class="result-unit">minutes</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Employee arrived exactly on time (08:00 AM)</p>
+                        <p>• Left exactly at factory end time (05:00 PM)</p>
+                        <p>• Total time: 9 hours - 30 min break = 8.5 hours</p>
+                        <p>• Meets required hours perfectly</p>
+                        <p>• Status: <strong>Present</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario 2: Overtime Work -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 2: Overtime Work</div>
+                    <div class="scenario-badge">⏰ Extra Hours</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>08:00 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕗</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>08:00 PM</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">8.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card warning">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">3.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card success">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">12.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Break Deducted</div>
+                            <div class="result-value">30</div>
+                            <div class="result-unit">minutes</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Employee worked 12 total hours (08:00 AM to 08:00 PM)</p>
+                        <p>• Break deducted: 30 minutes</p>
+                        <p>• Net working hours: 11.5 hours</p>
+                        <p>• Regular hours capped at 8.5, remaining 3.0 hours counted as overtime</p>
+                        <p>• Status: <strong>Present</strong> with overtime</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario 3: Within Grace Period (Late) -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 3: Within Grace Period (Late Arrival)</div>
+                    <div class="scenario-badge">✓ Acceptable</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>08:10 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕔</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>05:00 PM</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">8.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card success">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">8.83</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Adjusted Check-In</div>
+                            <div class="result-value">08:00</div>
+                            <div class="result-unit">AM</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Employee arrived 10 minutes late (within 15 min grace period)</p>
+                        <p>• Check-in adjusted to factory start time (08:00 AM)</p>
+                        <p>• No penalty applied for lateness within grace</p>
+                        <p>• Full regular hours credited</p>
+                        <p>• Status: <strong>Present</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario 4: Late Arrival (Beyond Grace) -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 4: Late Arrival (Beyond Grace Period)</div>
+                    <div class="scenario-badge">⚠️ Deficiency</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>09:00 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕔</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>05:00 PM</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">7.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card warning">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">1.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">8.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Actual Check-In</div>
+                            <div class="result-value">09:00</div>
+                            <div class="result-unit">AM</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Employee arrived 1 hour late (beyond 15 min grace period)</p>
+                        <p>• Actual check-in time used (09:00 AM)</p>
+                        <p>• Worked 8 hours - 30 min break = 7.5 hours</p>
+                        <p>• Deficiency: 8.5 - 7.5 = 1.0 hour</p>
+                        <p>• Status: <strong>Half Day</strong> (due to deficiency)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario 5: Early Exit -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 5: Early Exit</div>
+                    <div class="scenario-badge">⚠️ Deficiency</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>08:00 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕓</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>04:00 PM</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">7.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card warning">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">1.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">8.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Actual Check-Out</div>
+                            <div class="result-value">04:00</div>
+                            <div class="result-unit">PM</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Employee left 1 hour early (before 05:00 PM)</p>
+                        <p>• Worked 8 hours - 30 min break = 7.5 hours</p>
+                        <p>• Deficiency: 8.5 - 7.5 = 1.0 hour</p>
+                        <p>• Early exit penalty applied</p>
+                        <p>• Status: <strong>Half Day</strong> (due to deficiency)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario 6: Short Day -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 6: Short Work Day</div>
+                    <div class="scenario-badge">⚠️ High Deficiency</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>10:00 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕓</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>03:00 PM</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">4.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card warning">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">4.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">5.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Break Deducted</div>
+                            <div class="result-value">30</div>
+                            <div class="result-unit">minutes</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Employee arrived 2 hours late and left 2 hours early</p>
+                        <p>• Worked only 5 hours - 30 min break = 4.5 hours</p>
+                        <p>• Deficiency: 8.5 - 4.5 = 4.0 hours</p>
+                        <p>• Significant shortfall from required hours</p>
+                        <p>• Status: <strong>Half Day</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario 7: Compensation for Late Arrival -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 7: Compensation for Late Arrival</div>
+                    <div class="scenario-badge">✓ Balanced</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>09:00 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕕</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>06:00 PM</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">8.5</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card success">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">9.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Break Deducted</div>
+                            <div class="result-value">30</div>
+                            <div class="result-unit">minutes</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Employee arrived 1 hour late (09:00 AM)</p>
+                        <p>• Compensated by staying 1 hour extra (until 06:00 PM)</p>
+                        <p>• Total: 9 hours - 30 min break = 8.5 hours</p>
+                        <p>• Exactly meets required hours</p>
+                        <p>• Status: <strong>Present</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario 8: Friday with Friday Break -->
+            <div class="scenario">
+                <div class="scenario-header">
+                    <div class="scenario-title">Scenario 8: Friday with Extended Break</div>
+                    <div class="scenario-badge">🕌 Friday</div>
+                </div>
+                <div class="scenario-body">
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-details">
+                                <label>Check-In Time</label>
+                                <value>08:00 AM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">🕔</div>
+                            <div class="time-details">
+                                <label>Check-Out Time</label>
+                                <value>05:00 PM</value>
+                            </div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-icon">📅</div>
+                            <div class="time-details">
+                                <label>Day Type</label>
+                                <value>Friday</value>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card success">
+                            <div class="result-label">Regular Hours</div>
+                            <div class="result-value">8.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Overtime</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card success">
+                            <div class="result-label">Deficiency</div>
+                            <div class="result-value">0.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card info">
+                            <div class="result-label">Total Hours</div>
+                            <div class="result-value">9.0</div>
+                            <div class="result-unit">hours</div>
+                        </div>
+                        <div class="result-card warning">
+                            <div class="result-label">Friday Break</div>
+                            <div class="result-value">60</div>
+                            <div class="result-unit">minutes</div>
+                        </div>
+                    </div>
+                    <div class="notes">
+                        <h4>📝 Calculation Notes:</h4>
+                        <p>• Friday has extended break: 60 minutes (01:30 PM - 02:30 PM)</p>
+                        <p>• Total time: 9 hours - 60 min Friday break = 8.0 hours</p>
+                        <p>• Friday required hours adjusted automatically</p>
+                        <p>• No deficiency on Friday</p>
+                        <p>• Status: <strong>Present</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <h3>📖 Understanding the Results</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);"></div>
+                    <span><strong>Green Cards:</strong> Positive metrics (meeting requirements)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+                    <span><strong>Red/Pink Cards:</strong> Issues (deficiency, overtime alerts)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+                    <span><strong>Blue Cards:</strong> Informational metrics</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                    <span><strong>Purple Cards:</strong> General calculated values</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>SpotLedger HR - Attendance Management System</strong></p>
+            <p>Automated calculation based on Regular Profile attendance rules</p>
+            <p style="margin-top: 10px; opacity: 0.8;">Generated for client demonstration • All calculations follow configured business rules</p>
+        </div>
+    </div>
+</body>
+</html>
+

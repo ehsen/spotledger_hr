@@ -129,21 +129,19 @@ app_license = "mit"
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+override_doctype_class = {
+	"Attendance": "spotledger_hr.controllers.attendance_controller.AttendanceController"
+}
 
 # Document Events
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Attendance": {
+		"validate": "spotledger_hr.controllers.attendance_controller.on_attendance_validate"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -243,8 +241,7 @@ app_license = "mit"
 # }
 
 fixtures = [
-
-     {
+    {
         "dt": "Custom Field",  # DocType for the fixture
         "filters": [
             ["module", "=", "Spotledger Hr"]  # Only include fields from this module
@@ -256,4 +253,11 @@ fixtures = [
             ["module", "=", "Spotledger Hr"]  # Only include fields from this module
         ]
     },
+    {
+        "dt": "DocType",
+        "filters": [
+            ["module", "=", "Spotledger Hr"],
+            ["name", "in", ["Bulk Attendance", "Bulk Attendance Item"]]
+        ]
+    }
 ]
