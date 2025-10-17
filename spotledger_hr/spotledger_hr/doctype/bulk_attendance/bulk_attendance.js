@@ -20,20 +20,8 @@ frappe.ui.form.on('Bulk Attendance', {
 		// Add filter functionality
 		frm.trigger('setup_filters');
 		
-		// Disable popup dialog for child table - allow inline editing only
-		if (frm.fields_dict.attendance_data && frm.fields_dict.attendance_data.grid) {
-			// Prevent grid row form from opening on click
-			frm.fields_dict.attendance_data.grid.grid_form = null;
-			
-			// Make all fields editable inline
-			frm.fields_dict.attendance_data.grid.editable_fields = [
-				{fieldname: 'status'},
-				{fieldname: 'check_in_date'},
-				{fieldname: 'check_in_time'},
-				{fieldname: 'check_out_date'},
-				{fieldname: 'check_out_time'}
-			];
-		}
+		// Configure child table for inline editing only - prevent popup dialogs
+		frm.trigger('configure_inline_editing');
 		frm.add_custom_button(__("Upload Attendance"), function() {
             let d = new frappe.ui.Dialog({
                 title: 'Upload Attendance File',
@@ -367,6 +355,74 @@ frappe.ui.form.on('Bulk Attendance', {
 		});
 	},
 
+	configure_inline_editing: function(frm) {
+		// Comprehensive configuration for inline editing only
+		if (frm.fields_dict.attendance_data && frm.fields_dict.attendance_data.grid) {
+			const grid = frm.fields_dict.attendance_data.grid;
+			
+			// Force inline editing by overriding key methods
+			grid.allow_on_grid_editing = function() {
+				return true; // Always allow inline editing
+			};
+			
+			// Override the toggle_view method to prevent popup opening
+			grid.grid_rows.forEach(function(grid_row) {
+				if (grid_row.toggle_view) {
+					const original_toggle_view = grid_row.toggle_view;
+					grid_row.toggle_view = function(show, callback) {
+						// Force inline editing instead of popup
+						if (show !== false) {
+							this.toggle_editable_row(true);
+							if (callback) callback();
+							return;
+						}
+						// Call original method for hiding
+						original_toggle_view.call(this, show, callback);
+					};
+				}
+				
+				// Override click handler to prevent popup
+				if (grid_row.row) {
+					grid_row.row.off('click').on('click', function(e) {
+						e.preventDefault();
+						e.stopPropagation();
+						
+						// Only allow inline editing, no popup
+						if (grid_row.grid.allow_on_grid_editing() && grid_row.grid.is_editable()) {
+							grid_row.toggle_editable_row(true);
+						}
+					});
+				}
+			});
+			
+			// Configure editable fields for inline editing
+			grid.editable_fields = [
+				{fieldname: 'status'},
+				{fieldname: 'check_in_date'},
+				{fieldname: 'check_in_time'},
+				{fieldname: 'check_out_date'},
+				{fieldname: 'check_out_time'}
+			];
+			
+			// Ensure grid form is null to prevent popup creation
+			grid.grid_form = null;
+			
+			// Override add_new_row to prevent popup opening
+			const original_add_new_row = grid.add_new_row;
+			grid.add_new_row = function(idx, callback, show, copy_doc, go_to_last_page, go_to_first_page) {
+				// Call original method but force inline editing
+				original_add_new_row.call(this, idx, function() {
+					// After row is added, ensure it's in inline edit mode
+					const last_row = this.grid_rows[this.grid_rows.length - 1];
+					if (last_row && last_row.toggle_editable_row) {
+						last_row.toggle_editable_row(true);
+					}
+					if (callback) callback();
+				}, show, copy_doc, go_to_last_page, go_to_first_page);
+			};
+		}
+	},
+
 	load_data: function(frm) {
 		// Validate required fields
 		if (!frm.doc.from_date || !frm.doc.to_date) {
@@ -409,6 +465,11 @@ frappe.ui.form.on('Bulk Attendance', {
 				}
 				// Always reload to show the loaded data
 				frm.reload_doc();
+				
+				// Reconfigure inline editing after reload
+				setTimeout(function() {
+					frm.trigger('configure_inline_editing');
+				}, 500);
 			},
 			error: function(r) {
 				frappe.show_alert({
@@ -440,6 +501,11 @@ frappe.ui.form.on('Bulk Attendance', {
 						}
 						// Reload to show the updated data
 						frm.reload_doc();
+						
+						// Reconfigure inline editing after reload
+						setTimeout(function() {
+							frm.trigger('configure_inline_editing');
+						}, 500);
 					},
 					error: function(r) {
 						frappe.show_alert({
@@ -572,6 +638,13 @@ frappe.ui.form.on('Bulk Attendance', {
 				indicator: 'blue'
 			});
 		}
+	},
+
+	attendance_data: function(frm) {
+		// Reconfigure inline editing whenever attendance_data field is refreshed
+		setTimeout(function() {
+			frm.trigger('configure_inline_editing');
+		}, 100);
 	}
 });
 

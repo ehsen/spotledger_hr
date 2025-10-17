@@ -43,7 +43,7 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {"Employee" : "spotledger_hr/public/js/employee_qr_code.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -74,10 +74,10 @@ app_license = "mit"
 # ----------
 
 # add methods and filters to jinja environment
-# jinja = {
-# 	"methods": "spotledger_hr.utils.jinja_methods",
+jinja = {
+	"methods": ["spotledger_hr.utilities.qr_code_generator.get_employee_qr_code_with_legacy_code"],
 # 	"filters": "spotledger_hr.utils.jinja_filters"
-# }
+}
 
 # Installation
 # ------------
@@ -257,7 +257,8 @@ fixtures = [
         "dt": "DocType",
         "filters": [
             ["module", "=", "Spotledger Hr"],
-            ["name", "in", ["Bulk Attendance", "Bulk Attendance Item"]]
+            
         ]
-    }
+    },
+    
 ]
