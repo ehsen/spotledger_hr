@@ -253,12 +253,6 @@ fixtures = [
             ["module", "=", "Spotledger Hr"]  # Only include fields from this module
         ]
     },
-    {
-        "dt": "DocType",
-        "filters": [
-            ["module", "=", "Spotledger Hr"],
-            
-        ]
-    },
+    
     
 ]
