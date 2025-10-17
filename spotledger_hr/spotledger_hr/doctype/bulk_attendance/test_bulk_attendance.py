@@ -134,3 +134,66 @@ class TestBulkAttendance(unittest.TestCase):
 		frappe.delete_doc("Employee Checkin", checkin.name)
 		frappe.delete_doc("Employee", employee.name)
 
+	def test_bulk_create_attendance_functionality(self):
+		"""Test bulk create attendance functionality"""
+		# Create test employee
+		employee = frappe.get_doc({
+			"doctype": "Employee",
+			"employee_name": "Test Employee 3",
+			"employee_number": "EMP003",
+			"custom_attendance_required": 1
+		}).insert()
+
+		# Create test checkin records
+		checkin = frappe.get_doc({
+			"doctype": "Employee Checkin",
+			"employee": employee.name,
+			"log_type": "IN",
+			"time": get_datetime("2025-01-15 09:00:00")
+		}).insert()
+
+		checkout = frappe.get_doc({
+			"doctype": "Employee Checkin",
+			"employee": employee.name,
+			"log_type": "OUT",
+			"time": get_datetime("2025-01-15 17:00:00")
+		}).insert()
+
+		# Load data
+		self.bulk_attendance.from_date = getdate("2025-01-15")
+		self.bulk_attendance.to_date = getdate("2025-01-15")
+		self.bulk_attendance.load_data()
+
+		# Verify data is loaded
+		self.assertGreater(len(self.bulk_attendance.attendance_data), 0)
+		item = self.bulk_attendance.attendance_data[0]
+		self.assertEqual(item.status, "Present")
+
+		# Create attendance records
+		result = self.bulk_attendance.bulk_create_attendance()
+
+		# Verify results
+		self.assertTrue(result["success"])
+		self.assertGreater(result["successful"], 0)
+		self.assertEqual(result["failed"], 0)
+		self.assertEqual(result["duplicates"], 0)
+
+		# Verify attendance record was created
+		attendance_exists = frappe.db.exists("Attendance", {
+			"employee": employee.name,
+			"attendance_date": getdate("2025-01-15")
+		})
+		self.assertTrue(attendance_exists)
+
+		# Test duplicate detection
+		result2 = self.bulk_attendance.bulk_create_attendance()
+		self.assertEqual(result2["duplicates"], 1)
+		self.assertEqual(result2["successful"], 0)
+
+		# Clean up test data
+		if attendance_exists:
+			frappe.delete_doc("Attendance", attendance_exists)
+		frappe.delete_doc("Employee Checkin", checkin.name)
+		frappe.delete_doc("Employee Checkin", checkout.name)
+		frappe.delete_doc("Employee", employee.name)
+

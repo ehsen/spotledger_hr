@@ -1,0 +1,130 @@
+/* Bulk Attendance Progress Bar Styles */
+.attendance-progress-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #d1d8e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin: 20px 0;
+    padding: 20px;
+}
+
+.attendance-progress-container h5 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.attendance-progress-container h5 i {
+    margin-right: 8px;
+    color: #3498db;
+}
+
+.attendance-progress-container .progress {
+    height: 25px;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    background-color: #e9ecef;
+    overflow: hidden;
+}
+
+.attendance-progress-container .progress-bar {
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 25px;
+    transition: width 0.3s ease;
+}
+
+.attendance-status {
+    margin-top: 10px;
+}
+
+.attendance-status p {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.attendance-status .row {
+    margin-top: 10px;
+}
+
+.attendance-status .col-sm-4 {
+    padding: 5px 10px;
+    text-align: center;
+    border-radius: 4px;
+    background-color: rgba(255,255,255,0.7);
+    margin: 0 2px;
+}
+
+.attendance-results {
+    margin-top: 20px;
+}
+
+.attendance-results .alert {
+    margin-bottom: 15px;
+    border-radius: 6px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.attendance-results .alert i {
+    margin-right: 8px;
+}
+
+.duplicate-records, .failed-records {
+    margin-top: 10px;
+}
+
+.duplicate-records table, .failed-records table {
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+.duplicate-records table th, .failed-records table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    padding: 8px;
+}
+
+.duplicate-records table td, .failed-records table td {
+    padding: 6px 8px;
+    vertical-align: middle;
+}
+
+.duplicate-records table a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.duplicate-records table a:hover {
+    text-decoration: underline;
+}
+
+.failed-records table td[style*="color: red"] {
+    font-family: monospace;
+    font-size: 11px;
+    word-break: break-all;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .attendance-progress-container {
+        margin: 15px 0;
+        padding: 15px;
+    }
+    
+    .attendance-status .col-sm-4 {
+        margin-bottom: 5px;
+        margin-left: 0;
+        margin-right: 0;
+    }
+    
+    .duplicate-records table, .failed-records table {
+        font-size: 11px;
+    }
+    
+    .duplicate-records table th, .failed-records table th,
+    .duplicate-records table td, .failed-records table td {
+        padding: 4px 6px;
+    }
+}

@@ -327,3 +327,133 @@ class BulkAttendance(Document):
                 })
 
         return missing_data
+
+    @frappe.whitelist()
+    def bulk_create_attendance(self, docname=None, skip_duplicates=1, batch_size=50):
+        """Create attendance records from bulk attendance data"""
+        # Get the document if docname is provided, otherwise use self
+        if docname:
+            doc = frappe.get_doc("Bulk Attendance", docname)
+        else:
+            doc = self
+
+        # Load the document to ensure we have the latest data
+        doc.reload()
+
+        if not doc.attendance_data:
+            frappe.throw("No attendance data found. Please load data first.")
+
+        # Initialize progress tracking
+        total_records = len(doc.attendance_data)
+        successful = 0
+        failed = 0
+        duplicates = 0
+        failed_records = []
+        duplicate_records = []
+
+        # Send initial progress event
+        initial_progress = [0, "Starting attendance creation...", f"0 of {total_records} - Success: 0, Failed: 0, Duplicates: 0"]
+        print(f"DEBUG: Publishing initial progress: {initial_progress}")
+        frappe.publish_realtime("attendance_progress", {
+            "progress": initial_progress
+        }, user=frappe.session.user)
+
+        # Process each attendance item
+        for i, item in enumerate(doc.attendance_data):
+            try:
+                # Check for existing attendance if skip_duplicates is enabled
+                if skip_duplicates:
+                    existing_attendance = frappe.db.exists("Attendance", {
+                        "employee": item.employee,
+                        "attendance_date": item.day,
+                        "docstatus": 1
+                    })
+
+                    if existing_attendance:
+                        duplicates += 1
+                        duplicate_records.append({
+                            "employee": item.employee,
+                            "employee_name": item.employee_name,
+                            "day": item.day,
+                            "existing_attendance": existing_attendance
+                        })
+                        continue
+
+                # Get employee details for required fields
+                employee_doc = frappe.get_doc("Employee", item.employee)
+                
+                # Prepare attendance data with all required fields
+                attendance_data = {
+                    "doctype": "Attendance",
+                    "employee": item.employee,
+                    "employee_name": employee_doc.employee_name,
+                    "attendance_date": item.day,
+                    "status": item.status,  # Use the actual status (Present/Absent/Error)
+                    "company": employee_doc.company,
+                    "department": employee_doc.department
+                }
+
+                # Add check-in and check-out times if available
+                if item.check_in_date and item.check_in_time:
+                    check_in_datetime = get_datetime(f"{item.check_in_date} {item.check_in_time}")
+                    attendance_data["in_time"] = check_in_datetime
+
+                if item.check_out_date and item.check_out_time:
+                    check_out_datetime = get_datetime(f"{item.check_out_date} {item.check_out_time}")
+                    attendance_data["out_time"] = check_out_datetime
+
+                # Create attendance record
+                try:
+                    attendance_doc = frappe.get_doc(attendance_data)
+                    attendance_doc.insert()
+                    attendance_doc.submit()
+                    successful += 1
+                except Exception as attendance_error:
+                    # If attendance creation fails, add to failed records
+                    failed += 1
+                    failed_records.append({
+                        "employee": item.employee,
+                        "employee_name": item.employee_name,
+                        "day": item.day,
+                        "error": str(attendance_error)
+                    })
+                    frappe.log_error(message=str(attendance_error), title=f"Error creating attendance for {item.employee_name} on {item.day}")
+
+                # Update progress via realtime after each record
+                progress_percent = int((i + 1) / total_records * 100)
+                progress_data = [progress_percent, f"Processing {item.employee_name}...", f"{i + 1} of {total_records} - Success: {successful}, Failed: {failed}, Duplicates: {duplicates}"]
+                print(f"DEBUG: Publishing progress {i+1}/{total_records}: {progress_data}")
+                frappe.publish_realtime("attendance_progress", {
+                    "progress": progress_data
+                }, user=frappe.session.user)
+
+            except Exception as e:
+                failed += 1
+                failed_records.append({
+                    "employee": item.employee,
+                    "employee_name": item.employee_name,
+                    "day": item.day,
+                    "error": str(e)
+                })
+                frappe.log_error(message=str(e), title=f"Error processing attendance for {item.employee_name} on {item.day}")
+
+        # Final progress update
+        final_progress = [100, "Completed", f"Total: {total_records}, Success: {successful}, Failed: {failed}, Duplicates: {duplicates}"]
+        print(f"DEBUG: Publishing final progress: {final_progress}")
+        frappe.publish_realtime("attendance_progress", {
+            "progress": final_progress
+        }, user=frappe.session.user)
+
+        # Return results
+        result = {
+            "success": True,
+            "total_records": total_records,
+            "successful": successful,
+            "failed": failed,
+            "duplicates": duplicates,
+            "failed_records": failed_records,
+            "duplicate_records": duplicate_records
+        }
+
+        return result
+

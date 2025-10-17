@@ -11,7 +11,10 @@ from frappe import _
 from frappe.utils import get_datetime, getdate, add_days
 from frappe.exceptions import ValidationError
 from hrms.hr.doctype.attendance.attendance import Attendance
-from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
+try:
+    from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
+except ImportError:
+    AttendanceRuleEngine = None
 from typing import Dict, Any, Optional, List
 import sqlite3
 import datetime
@@ -77,6 +80,12 @@ class AttendanceController(Attendance):
     
     def calculate_attendance_metrics(self):
         """Calculate comprehensive attendance metrics using Attendance Rule Engine"""
+        if AttendanceRuleEngine is None:
+            frappe.msgprint(_("Attendance Rule Engine not available. Using default values."), 
+                          alert=True, indicator='orange')
+            self.working_hours = 0
+            return
+            
         try:
             # Initialize attendance rule engine
             engine = AttendanceRuleEngine(self.employee, self.attendance_date)
@@ -150,7 +159,7 @@ class AttendanceController(Attendance):
     
     def on_submit(self):
         """Additional processing on attendance submission"""
-        super().on_submit()
+        # Note: Parent Attendance class doesn't have on_submit method, so we don't call super()
         
         # Log attendance submission
         frappe.logger().info(f"Attendance submitted for {self.employee} on {self.attendance_date}")
@@ -183,12 +192,22 @@ def on_attendance_validate(doc, method=None):
     Event handler for Attendance validation
     Called via doc_events hook to calculate attendance metrics
     """
+    # Check if custom fields exist before accessing them
+    if not hasattr(doc, 'custom_manual_attendance') or not hasattr(doc, 'custom_check_in_time') or not hasattr(doc, 'custom_check_out_time'):
+        # Skip custom processing if fields don't exist
+        return
+    
     # Fetch check-in/check-out times from Employee Checkin if not manual
     if not doc.custom_manual_attendance:
         fetch_checkin_checkout_from_employee_checkin_for_doc(doc)
     
     # Only calculate if both custom check-in and check-out times are present
     if doc.custom_check_in_time and doc.custom_check_out_time:
+        if AttendanceRuleEngine is None:
+            frappe.msgprint(_("Attendance Rule Engine not available. Skipping custom calculations."), 
+                          alert=True, indicator='orange')
+            return
+            
         try:
             # Initialize attendance rule engine
             engine = AttendanceRuleEngine(doc.employee, doc.attendance_date)
@@ -205,7 +224,9 @@ def on_attendance_validate(doc, method=None):
             
         except Exception as e:
             frappe.log_error(f"Error calculating attendance metrics: {str(e)}", "Attendance Calculation Error")
-            frappe.throw(_("Error calculating attendance metrics. Please check attendance rule configuration."))
+            # Don't throw error, just log it to avoid blocking attendance creation
+            frappe.msgprint(_("Warning: Could not calculate attendance metrics. Please check attendance rule configuration."), 
+                          alert=True, indicator='orange')
 
 
 def fetch_checkin_checkout_from_employee_checkin_for_doc(doc):

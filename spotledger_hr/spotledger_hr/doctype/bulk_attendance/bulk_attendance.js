@@ -15,6 +15,12 @@ frappe.ui.form.on('Bulk Attendance', {
 			frm.page.set_secondary_action(__('Bulk Update'), function() {
 				frm.trigger('bulk_update');
 			});
+			
+			// Add Create Attendance button
+			frm.add_custom_button(__('Create Attendance'), function() {
+				frm.trigger('create_attendance');
+			}, __('Actions'));
+			
 		}
 
 		// Add filter functionality
@@ -354,6 +360,278 @@ frappe.ui.form.on('Bulk Attendance', {
 			}
 		});
 	},
+
+	create_attendance: function(frm) {
+		// Validate that we have attendance data
+		if (!frm.doc.attendance_data || frm.doc.attendance_data.length === 0) {
+			frappe.msgprint(__('No attendance data found. Please load data first.'));
+			return;
+		}
+
+		// Count records that will be processed (all records)
+		let present_records = frm.doc.attendance_data.filter(item => item.status === 'Present');
+		if (frm.doc.attendance_data.length === 0) {
+			frappe.msgprint(__('No attendance records found to process.'));
+			return;
+		}
+
+		// Create attendance creation dialog similar to sync dialog
+		let attendance_dialog = new frappe.ui.Dialog({
+			title: __('Create Attendance Records'),
+			fields: [
+				{
+					fieldtype: 'HTML',
+					fieldname: 'summary_html',
+					options: `
+						<div class="alert alert-info">
+							<h5><i class="fa fa-info-circle"></i> Attendance Creation Summary</h5>
+							<p><strong>Total Records:</strong> ${frm.doc.attendance_data.length}</p>
+							<p><strong>Present Records:</strong> ${present_records.length}</p>
+							<p><strong>Absent Records:</strong> ${frm.doc.attendance_data.filter(item => item.status === 'Absent').length}</p>
+							<p><strong>Error Records:</strong> ${frm.doc.attendance_data.filter(item => item.status === 'Error').length}</p>
+							<p class="text-muted">All records will be processed. Present records will be marked as Present, Absent as Absent, and Error as Error.</p>
+						</div>
+					`
+				},
+				{
+					fieldtype: 'Section Break',
+					label: __('Options')
+				},
+				{
+					label: __('Skip Duplicates'),
+					fieldname: 'skip_duplicates',
+					fieldtype: 'Check',
+					default: 1,
+					description: __('Skip records where attendance already exists')
+				},
+				{
+					fieldtype: 'Column Break'
+				},
+				{
+					label: __('Batch Size'),
+					fieldname: 'batch_size',
+					fieldtype: 'Int',
+					default: 50,
+					description: __('Number of records to process at once')
+				}
+			],
+			primary_action_label: __('Create Attendance'),
+			primary_action(values) {
+				attendance_dialog.hide();
+				
+				// Start attendance creation with progress dialog
+				frm.events.start_attendance_creation(frm, values);
+			}
+		});
+		attendance_dialog.show();
+	},
+
+	start_attendance_creation: function(frm, values) {
+		console.log('Starting attendance creation with values:', values);
+		
+		// Show progress dialog similar to sync dialog
+		let progress_dialog = new frappe.ui.Dialog({
+			title: __('Creating Attendance Records'),
+			fields: [
+				{
+					fieldtype: 'HTML',
+					fieldname: 'progress_area'
+				}
+			],
+			primary_action_label: __('Close'),
+			primary_action() {
+				if (poll_interval) clearInterval(poll_interval);
+				if (fallback_interval) clearInterval(fallback_interval);
+				frappe.realtime.off("attendance_progress", progressEventHandler);
+				progress_dialog.hide();
+			},
+			onhide: function() {
+				if (poll_interval) clearInterval(poll_interval);
+				if (fallback_interval) clearInterval(fallback_interval);
+				frappe.realtime.off("attendance_progress", progressEventHandler);
+			}
+		});
+		
+		// Create progress HTML similar to sync dialog
+		let progress_html = `
+			<div class="progress-sync-container" style="margin: 20px 0;">
+				<div class="progress" style="height: 25px; margin-bottom: 15px;">
+					<div class="progress-bar progress-bar-striped progress-bar-animated" 
+						 role="progressbar" 
+						 style="width: 0%;" 
+						 id="attendance-progress-bar">0%</div>
+				</div>
+				<div class="attendance-status" id="attendance-status" style="margin-top: 10px;">
+					<p><strong>Status:</strong> <span id="attendance-status-text">Starting attendance creation...</span></p>
+					<p><strong>Progress:</strong> <span id="attendance-progress-text">0 of 0</span></p>
+					<p><strong>Success:</strong> <span id="attendance-success-count" class="text-success">0</span></p>
+					<p><strong>Failed:</strong> <span id="attendance-failed-count" class="text-danger">0</span></p>
+					<p><strong>Duplicates:</strong> <span id="attendance-duplicate-count" class="text-warning">0</span></p>
+				</div>
+			</div>
+		`;
+		
+		progress_dialog.fields_dict.progress_area.$wrapper.html(progress_html);
+		progress_dialog.show();
+		
+		// Disable primary action initially
+		progress_dialog.get_primary_btn().prop('disabled', true);
+		
+		// Declare poll_interval in outer scope
+		let poll_interval;
+		
+		// Listen for progress events with more robust setup
+		console.log('Setting up realtime listener for attendance_progress...');
+		
+		// Remove any existing listeners first
+		frappe.realtime.off("attendance_progress");
+		
+		// Create a unique event handler for this session
+		let progressEventHandler = function(data) {
+			console.log('Progress event received:', data);
+			console.log('Progress data:', data.progress);
+			
+			if (data && data.progress && Array.isArray(data.progress)) {
+				let percent = Math.round(data.progress[0]);
+				console.log('Updating progress to:', percent + '%');
+				
+				// Update progress bar
+				$('#attendance-progress-bar').css('width', percent + '%').text(percent + '%');
+				$('#attendance-status-text').text(data.progress[1] || 'Processing...');
+				$('#attendance-progress-text').text(data.progress[2] || '');
+				
+				// Extract counts from description if available
+				let desc = data.progress[2] || '';
+				let successMatch = desc.match(/Success:\s*(\d+)/);
+				let failedMatch = desc.match(/Failed:\s*(\d+)/);
+				let duplicateMatch = desc.match(/Duplicates:\s*(\d+)/);
+				
+				if (successMatch) {
+					$('#attendance-success-count').text(successMatch[1]);
+				}
+				if (failedMatch) {
+					$('#attendance-failed-count').text(failedMatch[1]);
+				}
+				if (duplicateMatch) {
+					$('#attendance-duplicate-count').text(duplicateMatch[1]);
+				}
+			} else {
+				console.log('Invalid progress data received:', data);
+			}
+		};
+		
+		frappe.realtime.on("attendance_progress", progressEventHandler);
+		
+		console.log('Realtime listener set up successfully');
+		
+		// Add fallback progress simulation if realtime doesn't work
+		let fallback_progress = 0;
+		let fallback_interval;
+		
+		// Start fallback progress after a short delay to ensure DOM is ready
+		setTimeout(function() {
+			console.log('Starting fallback progress animation...');
+			console.log('Progress bar element exists:', $('#attendance-progress-bar').length > 0);
+			console.log('Status text element exists:', $('#attendance-status-text').length > 0);
+			
+			fallback_interval = setInterval(function() {
+				fallback_progress += 10;
+				console.log('Fallback progress:', fallback_progress + '%');
+				
+				if (fallback_progress <= 100) {
+					// Check if elements exist before updating
+					if ($('#attendance-progress-bar').length) {
+						$('#attendance-progress-bar').css('width', fallback_progress + '%').text(fallback_progress + '%');
+						console.log('Updated progress bar to:', fallback_progress + '%');
+					} else {
+						console.log('Progress bar element not found!');
+					}
+					if ($('#attendance-status-text').length) {
+						$('#attendance-status-text').text(`Processing... ${fallback_progress}%`);
+					} else {
+						console.log('Status text element not found!');
+					}
+					
+					// Don't update stats with fake values - wait for real API response
+					// The stats will be updated when the API call completes
+				} else {
+					console.log('Fallback progress reached 100%, stopping interval');
+					clearInterval(fallback_interval);
+				}
+			}, 1000);
+		}, 500);
+		
+		// Make the API call
+		frm.call({
+			method: 'bulk_create_attendance',
+			doc: frm.doc,
+			args: {
+				docname: frm.doc.name,
+				skip_duplicates: values.skip_duplicates || 1,
+				batch_size: values.batch_size || 50
+			},
+			freeze: false,
+			callback: function(r) {
+				console.log('API call completed:', r);
+				// Stop fallback progress and clean up listeners
+				if (fallback_interval) {
+					clearInterval(fallback_interval);
+					console.log('Stopped fallback progress interval');
+				}
+				frappe.realtime.off("attendance_progress", progressEventHandler);
+				progress_dialog.get_primary_btn().prop('disabled', false);
+				
+				if (r.message) {
+					let result = r.message;
+					console.log('API result:', result);
+					console.log('Real stats - Success:', result.successful, 'Failed:', result.failed, 'Duplicates:', result.duplicates);
+					$('#attendance-status-text').text('Completed');
+					$('#attendance-progress-bar').removeClass('progress-bar-animated').css('width', '100%').text('100%');
+					
+					if (result.success) {
+						$('#attendance-progress-bar').removeClass('bg-primary').addClass('bg-success');
+					} else {
+						$('#attendance-progress-bar').removeClass('bg-primary').addClass('bg-warning');
+					}
+					
+					// Show final counts
+					$('#attendance-success-count').text(result.successful || 0);
+					$('#attendance-failed-count').text(result.failed || 0);
+					$('#attendance-duplicate-count').text(result.duplicates || 0);
+					$('#attendance-progress-text').text(`${result.total_records} total records processed`);
+					
+					// Show summary message
+					let summary_msg = `Attendance creation completed: ${result.successful} successful, ${result.failed} failed, ${result.duplicates} duplicates`;
+					frappe.show_alert({
+						message: summary_msg,
+						indicator: result.failed > 0 ? 'orange' : 'green'
+					});
+					
+					// Reload the form to show new data
+					frm.reload_doc();
+				}
+			},
+			error: function(r) {
+				console.error('API error:', r);
+				// Stop fallback progress and clean up listeners
+				if (fallback_interval) {
+					clearInterval(fallback_interval);
+					console.log('Stopped fallback progress interval due to error');
+				}
+				frappe.realtime.off("attendance_progress", progressEventHandler);
+				progress_dialog.get_primary_btn().prop('disabled', false);
+				$('#attendance-status-text').text('Failed');
+				$('#attendance-progress-bar').removeClass('progress-bar-animated bg-primary').addClass('bg-danger');
+				
+				frappe.show_alert({
+					title: __('Attendance Creation Failed'),
+					message: __('Error creating attendance records. Please check console for details.'),
+					indicator: 'red'
+				});
+			}
+		});
+	},
+
 
 	configure_inline_editing: function(frm) {
 		// Comprehensive configuration for inline editing only

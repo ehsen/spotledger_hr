@@ -1,0 +1,57 @@
+/* SpotLedger HR Main CSS File */
+
+/* General app styling */
+.spotledger-hr-container {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+/* Custom button styling */
+.btn-spotledger {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.btn-spotledger:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: white;
+}
+
+/* Custom alert styling */
+.alert-spotledger {
+    border-left: 4px solid #007bff;
+    background-color: #e7f3ff;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+/* Custom card styling */
+.card-spotledger {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: white;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .spotledger-hr-container {
+        padding: 15px;
+        margin: 5px 0;
+    }
+    
+    .card-spotledger {
+        padding: 15px;
+        margin: 10px 0;
+    }
+}

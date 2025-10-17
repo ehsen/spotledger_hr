@@ -25,7 +25,10 @@ app_license = "mit"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/spotledger_hr/css/spotledger_hr.css"
+app_include_css = [
+	"/assets/spotledger_hr/css/spotledger_hr.css",
+	"/assets/spotledger_hr/css/bulk_attendance.css"
+]
 # app_include_js = "/assets/spotledger_hr/js/spotledger_hr.js"
 
 # include js, css files in header of web template
