@@ -142,7 +142,7 @@ def get_employee_qr_code_with_legacy_code(employee_id):
         if hasattr(employee, 'custom_old_code') and employee.custom_old_code:
             qr_data = employee.custom_old_code
         elif employee.employee_name:
-            qr_data = f"{employee.name} - {employee.employee_name}"
+            qr_data = f"{employee.name}"
             
         return get_qr_code(qr_data)
         
