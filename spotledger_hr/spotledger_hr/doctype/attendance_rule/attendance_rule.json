@@ -7,7 +7,7 @@
     "track_changes": 1,
     "track_seen": 1,
     "engine": "InnoDB",
-    "autoname": "field:company",
+    "autoname": "prompt",
     "sort_field": "modified",
     "sort_order": "DESC",
     "istable": 0,
