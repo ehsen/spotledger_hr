@@ -133,7 +133,8 @@ jinja = {
 # Override standard doctype classes
 
 override_doctype_class = {
-	"Attendance": "spotledger_hr.controllers.attendance_controller.AttendanceController"
+	"Attendance": "spotledger_hr.controllers.attendance_controller.AttendanceController",
+	"Salary Slip": "spotledger_hr.controllers.salary_slip_controller.CustomSalarySlip"
 }
 
 # Document Events
@@ -254,6 +255,12 @@ fixtures = [
         "dt": "Property Setter",  # DocType for the fixture
         "filters": [
             ["module", "=", "Spotledger Hr"]  # Only include fields from this module
+        ]
+    },
+    {
+        "dt": "Salary Component",  # Salary components for attendance-based payroll
+        "filters": [
+            ["name", "in", ["Gross Salary", "Overtime", "Overtime GZT", "Advances"]]
         ]
     },
     
