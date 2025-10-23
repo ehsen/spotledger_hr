@@ -29,6 +29,10 @@ app_include_css = [
 	"/assets/spotledger_hr/css/spotledger_hr.css",
 	"/assets/spotledger_hr/css/bulk_attendance.css"
 ]
+# Register custom JavaScript for Employee Advance bulk payment feature
+app_include_js = [
+	"/assets/spotledger_hr/js/employee_advance_bulk_payment.js"
+]
 # app_include_js = "/assets/spotledger_hr/js/spotledger_hr.js"
 
 # include js, css files in header of web template
