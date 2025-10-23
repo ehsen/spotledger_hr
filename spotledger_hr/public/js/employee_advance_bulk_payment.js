@@ -153,6 +153,14 @@ function execute_bulk_payment_creation(selected_items) {
 	// Show progress bar
 	frappe.show_progress(__("Creating Payment Entries"), 0, total);
 	
+	let progress = 0;
+	const progress_interval = setInterval(() => {
+		if (progress < total * 0.9) { // Increment until 90%
+			progress += Math.max(1, Math.floor(total / 10));
+			frappe.show_progress(__("Creating Payment Entries"), progress, total);
+		}
+	}, 200); // Update every 200ms
+	
 	// Call backend endpoint
 	frappe.call({
 		method: "spotledger_hr.utilities.bulk_advances_payment.create_bulk_payment_entries",
@@ -160,6 +168,8 @@ function execute_bulk_payment_creation(selected_items) {
 			employee_advance_names: item_names
 		},
 		callback: function(r) {
+			clearInterval(progress_interval);
+			frappe.show_progress(__("Creating Payment Entries"), total, total); // Complete the progress bar
 			frappe.hide_progress();
 			
 			if (r.message) {
@@ -171,6 +181,7 @@ function execute_bulk_payment_creation(selected_items) {
 			}
 		},
 		error: function(r) {
+			clearInterval(progress_interval);
 			frappe.hide_progress();
 			
 			// Parse error message
