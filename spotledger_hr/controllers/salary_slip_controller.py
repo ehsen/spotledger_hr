@@ -20,6 +20,7 @@ class CustomSalarySlip(SalarySlip):
     """
     
     def validate(self):
+        
         """Override validate to inject attendance-based salary calculation"""
         # Check if employee requires attendance-based salary
         if self.should_calculate_from_attendance():
@@ -28,6 +29,22 @@ class CustomSalarySlip(SalarySlip):
         
         # Call parent validation (standard Frappe HRMS flow)
         super().validate()
+    
+    def on_submit(self):
+        """Link advance deduction records to salary slip to prevent duplicate application"""
+        super().on_submit()
+        
+        # Link Employee Advance Deduction records to this salary slip
+        if self.should_calculate_from_attendance():
+            self.link_advance_deductions_to_salary_slip()
+    
+    def on_cancel(self):
+        """Remove salary slip reference from Employee Advance Deduction records when cancelled"""
+        super().on_cancel()
+        
+        # Unlink Employee Advance Deduction records when salary slip is cancelled
+        if self.should_calculate_from_attendance():
+            self.unlink_advance_deductions_from_salary_slip()
     
     def should_calculate_from_attendance(self):
         """
@@ -52,10 +69,10 @@ class CustomSalarySlip(SalarySlip):
         """
         if not self.start_date or not self.end_date:
             frappe.throw(_("Start Date and End Date are required for attendance-based salary calculation"))
-        
+        frappe.log_error(message="calculate_attendance_based_salary", title="CustomSalarySlip called")
         # Get attendance summary
         attendance_summary = self.get_attendance_hours_summary()
-        
+        frappe.log_error(message=f"attendance_summary {attendance_summary}", title="attendance_summary")
         # Get base salary from Salary Structure
         base_salary = self.get_base_salary_from_structure()
         
@@ -66,10 +83,15 @@ class CustomSalarySlip(SalarySlip):
         # Calculate days in month
         days_in_month = self.get_days_in_month()
         
-        # Get days worked from attendance
+        # Get days worked (actual present days from attendance)
         days_worked = attendance_summary.get('days_worked', 0)
         
-        # Calculate per day and per hour salary
+        # Get payment_days from parent SalarySlip class (already accounts for holidays/leave)
+        # This is calculated by the parent class based on leave and attendance
+        payment_days_total = self.payment_days if self.payment_days else days_in_month
+        frappe.log_error(message=f"payment days = {payment_days_total}", title="payment days")
+        
+        # Calculate per day and per hour salary based on payment days (includes holidays)
         per_day_salary = base_salary / days_in_month
         
         # Get required factory hours from employee's attendance rule
@@ -77,14 +99,21 @@ class CustomSalarySlip(SalarySlip):
         hourly_rate = self.calculate_hourly_rate(base_salary, days_in_month, required_hours)
         
         # Calculate gross salary based on days worked
-        gross_salary = per_day_salary * days_worked
+        gross_salary = per_day_salary * payment_days_total
+        frappe.log_error(message=f"gross salary = {gross_salary}, days worked = {days_worked}, payment days = {payment_days_total}, per day salary = {per_day_salary}", title="gross salary")
+        # Get deficiency hours from attendance records (already calculated by AttendanceRuleEngine)
+        deficiency_hours = attendance_summary.get('deficiency_hours', 0)
+        deficiency_amount = deficiency_hours * hourly_rate
         
         # Calculate overtime amounts
         overtime_amount = attendance_summary.get('overtime_hours', 0) * hourly_rate
         gzt_overtime_amount = attendance_summary.get('gzt_overtime_hours', 0) * hourly_rate
         
-        # Get employee advances
-        advances = self.get_employee_advances()
+        # Get employee advances with IDs for linking to prevent duplicates
+        advances_data = self.get_employee_advances_with_ids()
+        advances_amount = advances_data['total_amount']
+        advances_records = advances_data['records']
+        frappe.log_error(message=f"overtime amt = {overtime_amount}, deficiency amt = {deficiency_amount}, advances amt = {advances_amount}, base salary {base_salary}", title="salary amounts")
         
         # Clear existing earnings and deductions
         self.earnings = []
@@ -110,14 +139,17 @@ class CustomSalarySlip(SalarySlip):
             })
         
         # Add deduction components
-        if advances > 0:
+        if deficiency_amount > 0:
             self.append('deductions', {
-                'salary_component': 'Advances',
-                'amount': advances
+                'salary_component': 'Deficiency',
+                'amount': deficiency_amount
             })
         
-        # Set additional fields for reference
-        self.payment_days = days_worked
+        if advances_amount > 0:
+            self.append('deductions', {
+                'salary_component': 'Advances',
+                'amount': advances_amount
+            })
         
         # Add custom fields if they exist
         if hasattr(self, 'custom_attendance_based_calculation'):
@@ -169,11 +201,27 @@ class CustomSalarySlip(SalarySlip):
     def get_attendance_hours_summary(self):
         """
         Query attendance records and get summary of hours worked
-        Returns dict with days_worked, overtime_hours, gzt_overtime_hours
+        Returns dict with days_worked, deficiency_hours, overtime_hours, gzt_overtime_hours
+        Note: payment_days is calculated by parent SalarySlip class, not here
+        Deficiency is already calculated by AttendanceRuleEngine and stored in custom_deficiency_hours
         """
-        # Get days worked (count of Present attendance)
+        # Get days worked (count of Present attendance only)
         days_worked = frappe.db.sql("""
             SELECT COUNT(*) as days_worked
+            FROM `tabAttendance`
+            WHERE employee = %(employee)s
+            AND attendance_date BETWEEN %(start_date)s AND %(end_date)s
+            AND status = 'Present'
+            AND docstatus = 1
+        """, {
+            'employee': self.employee,
+            'start_date': self.start_date,
+            'end_date': self.end_date
+        }, as_dict=1)[0]
+        
+        # Get deficiency hours from attendance records (calculated by AttendanceRuleEngine)
+        deficiency = frappe.db.sql("""
+            SELECT IFNULL(SUM(custom_deficiency_hours), 0) as deficiency_hours
             FROM `tabAttendance`
             WHERE employee = %(employee)s
             AND attendance_date BETWEEN %(start_date)s AND %(end_date)s
@@ -217,6 +265,7 @@ class CustomSalarySlip(SalarySlip):
         
         return {
             'days_worked': days_worked.get('days_worked', 0),
+            'deficiency_hours': deficiency.get('deficiency_hours', 0),
             'overtime_hours': overtime.get('overtime_hours', 0),
             'gzt_overtime_hours': gzt_overtime.get('gzt_overtime_hours', 0)
         }
@@ -246,16 +295,94 @@ class CustomSalarySlip(SalarySlip):
         
         return monthly_salary / (days_in_month * required_hours)
     
+    def link_advance_deductions_to_salary_slip(self):
+        """
+        Link Employee Advance Deduction records to this salary slip
+        This prevents the same advance from being deducted multiple times across payroll periods
+        """
+        try:
+            advances_data = self.get_employee_advances_with_ids()
+            advances_records = advances_data['records']
+            
+            if not advances_records:
+                return
+            
+            # Update each Employee Advance Deduction record with salary slip reference
+            for advance in advances_records:
+                frappe.db.set_value(
+                    'Employee Advance Deduction',
+                    advance.get('name'),
+                    'salary_slip',
+                    self.name,
+                    update_modified=False
+                )
+            
+            frappe.db.commit()
+            frappe.log_error(
+                message=f"Linked {len(advances_records)} advance deduction records to salary slip {self.name}",
+                title="Advances Linked Successfully"
+            )
+            
+        except Exception as e:
+            frappe.log_error(
+                message=f"Error linking advance deductions: {str(e)}",
+                title="Error Linking Advances to Salary Slip"
+            )
+    
+    def unlink_advance_deductions_from_salary_slip(self):
+        """
+        Remove salary slip reference from Employee Advance Deduction records
+        This is called when salary slip is cancelled, allowing advances to be reused
+        """
+        try:
+            # Find all Employee Advance Deduction records linked to this salary slip
+            linked_advances = frappe.db.sql("""
+                SELECT name
+                FROM `tabEmployee Advance Deduction`
+                WHERE salary_slip = %(salary_slip)s
+                AND docstatus = 1
+            """, {
+                'salary_slip': self.name
+            }, as_dict=1)
+            
+            if not linked_advances:
+                return
+            
+            # Remove salary slip reference from each record
+            for advance in linked_advances:
+                frappe.db.set_value(
+                    'Employee Advance Deduction',
+                    advance.get('name'),
+                    'salary_slip',
+                    '',
+                    update_modified=False
+                )
+            
+            frappe.db.commit()
+            frappe.log_error(
+                message=f"Unlinked {len(linked_advances)} advance deduction records from cancelled salary slip {self.name}",
+                title="Advances Unlinked Successfully"
+            )
+            
+        except Exception as e:
+            frappe.log_error(
+                message=f"Error unlinking advance deductions: {str(e)}",
+                title="Error Unlinking Advances from Salary Slip"
+            )
+    
     def get_employee_advances(self):
         """
-        Get sum of employee advances for the payroll period
+        Get sum of employee advance deductions for the payroll period
+        Fetches from Employee Advance Deduction doctype where posting_date falls within payroll period
+        Returns total deduction amount
         """
         advances = frappe.db.sql("""
-            SELECT IFNULL(SUM(advance_amount), 0) as total_advance
-            FROM `tabEmployee Advance`
+            SELECT IFNULL(SUM(deduction_amount), 0) as total_advance
+            FROM `tabEmployee Advance Deduction`
             WHERE employee = %(employee)s
             AND posting_date BETWEEN %(start_date)s AND %(end_date)s
             AND docstatus = 1
+            AND (salary_slip IS NULL OR salary_slip = '')
         """, {
             'employee': self.employee,
             'start_date': self.start_date,
@@ -263,6 +390,31 @@ class CustomSalarySlip(SalarySlip):
         }, as_dict=1)[0]
         
         return flt(advances.get('total_advance', 0))
+    
+    def get_employee_advances_with_ids(self):
+        """
+        Get employee advance deductions for the payroll period along with their IDs for linking
+        Returns list of deduction records and total amount
+        """
+        advances = frappe.db.sql("""
+            SELECT name, deduction_amount
+            FROM `tabEmployee Advance Deduction`
+            WHERE employee = %(employee)s
+            AND posting_date BETWEEN %(start_date)s AND %(end_date)s
+            AND docstatus = 1
+            AND (salary_slip IS NULL OR salary_slip = '')
+        """, {
+            'employee': self.employee,
+            'start_date': self.start_date,
+            'end_date': self.end_date
+        }, as_dict=1)
+        
+        total_amount = flt(sum(adv.get('deduction_amount', 0) for adv in advances))
+        
+        return {
+            'records': advances,
+            'total_amount': total_amount
+        }
 
 
 # Helper functions for compatibility with legacy code

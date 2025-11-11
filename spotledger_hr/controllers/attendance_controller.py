@@ -43,7 +43,7 @@ class AttendanceController(Attendance):
             return
         
         # Get Employee Checkin records for this employee and date
-        next_date = add_days(self.attendance_date, 1)
+        next_date = add_days(self.attendance_date, 0)
         checkins = frappe.get_all(
             "Employee Checkin",
             filters={
@@ -138,7 +138,7 @@ class AttendanceController(Attendance):
         # Set status based on deficiency
         if summary.get('deficiency_hours', 0) > 0:
             if self.status != 'Absent':
-                self.status = 'Half Day'  # Mark as half day if there's deficiency
+                self.status = 'Present'  # Mark as half day if there's deficiency
         elif summary.get('regular_hours', 0) >= 8.0:  # Assuming 8 hours is full day
             self.status = 'Present'
     
@@ -230,21 +230,18 @@ def on_attendance_validate(doc, method=None):
 
 
 def fetch_checkin_checkout_from_employee_checkin_for_doc(doc):
-    """Fetch check-in and check-out times from Employee Checkin records for a doc"""
+    """Fetch check-in and check-out times from Employee Checkin records for a doc
+    Uses custom_attendance_date field to handle overnight shifts"""
     if not doc.employee or not doc.attendance_date:
         return
     
-    # Get Employee Checkin records for this employee and date
-    next_date = add_days(doc.attendance_date, 1)
+    # Get Employee Checkin records for this employee with matching custom_attendance_date
     checkins = frappe.get_all(
         "Employee Checkin",
         filters={
             "employee": doc.employee,
             "attendance": ["in", ["", None]],  # Not already linked to an attendance
-            "time": ["between", [
-                f"{doc.attendance_date} 00:00:00",
-                f"{next_date} 23:59:59"
-            ]]
+            "custom_attendance_date": doc.attendance_date
         },
         fields=["name", "time", "log_type"],
         order_by="time asc"
@@ -298,7 +295,7 @@ def update_attendance_fields_from_summary(doc, summary: Dict[str, Any]):
     # Set status based on deficiency
     if summary.get('deficiency_hours', 0) > 0:
         if doc.status != 'Absent':
-            doc.status = 'Half Day'  # Mark as half day if there's deficiency
+            doc.status = 'Present'  # Mark as half day if there's deficiency
     elif summary.get('regular_hours', 0) >= 8.0:  # Assuming 8 hours is full day
         doc.status = 'Present'
 
@@ -661,7 +658,8 @@ def create_employee_checkin_records(atten_dict: frappe._dict) -> Dict[str, Any]:
                     'doctype': "Employee Checkin",
                     'employee': employee_id,
                     'time': atten_dict.check_in,
-                    'log_type': "IN"
+                    'log_type': "IN",
+                    'custom_attendance_date': atten_dict.date
                 })
                 checkin_doc.insert(ignore_permissions=True)
                 created_records.append({'type': 'IN', 'name': checkin_doc.name})
@@ -685,7 +683,8 @@ def create_employee_checkin_records(atten_dict: frappe._dict) -> Dict[str, Any]:
                     'doctype': "Employee Checkin",
                     'employee': employee_id,
                     'time': atten_dict.check_out,
-                    'log_type': "OUT"
+                    'log_type': "OUT",
+                    'custom_attendance_date': atten_dict.date
                 })
                 checkout_doc.insert(ignore_permissions=True)
                 created_records.append({'type': 'OUT', 'name': checkout_doc.name})

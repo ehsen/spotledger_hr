@@ -77,6 +77,8 @@ class AttendanceRuleEngine:
             minutes=self.rule.checkin_grace_minutes, 
             as_datetime=True
         )
+
+        frappe.log_error(message=f"dt_factory_time = {dt_factory_time} threshold_check_in = {threshold_check_in} max_check_in_time = {max_check_in_time}",title="check in time")
         
         if dt_check_in <= threshold_check_in:
             return dt_factory_time
@@ -100,16 +102,9 @@ class AttendanceRuleEngine:
             
         dt_factory_time = self.get_current_datetime(self.attendance_date, factory_end_time)
         
-        max_check_out_time = add_to_date(
-            dt_factory_time, 
-            minutes=self.rule.checkout_max_grace_minutes, 
-            as_datetime=True
-        )
-        threshold_check_out = add_to_date(
-            dt_factory_time, 
-            minutes=self.rule.checkout_grace_minutes, 
-            as_datetime=True
-        )
+        # Calculate grace boundaries (times BEFORE factory end time)
+        min_check_out_time = dt_factory_time - timedelta(minutes=self.rule.checkout_max_grace_minutes)
+        threshold_check_out = dt_factory_time - timedelta(minutes=self.rule.checkout_grace_minutes)
         
         # Friday prayer break handling
         if self.is_friday and self.rule.enable_friday_logic:
@@ -128,12 +123,16 @@ class AttendanceRuleEngine:
                 return dt_factory_time
         
         # Regular grace period logic
-        if dt_check_out <= threshold_check_out and dt_check_out >= dt_factory_time:
-            return dt_factory_time
-        elif dt_check_out <= max_check_out_time:
-            return max_check_out_time
-        elif dt_check_out < dt_factory_time:
+        # If checkout is after factory time, keep actual checkout
+        if dt_check_out > dt_factory_time:
             return dt_check_out
+        # If checkout is within grace period of factory time (early but close), adjust to factory time
+        elif dt_check_out >= threshold_check_out:
+            return dt_factory_time
+        # If checkout is between grace and max grace (early), adjust to min grace time
+        elif dt_check_out >= min_check_out_time:
+            return min_check_out_time
+        # If checkout is before min grace time (too early), keep actual checkout
         else:
             return dt_check_out
     
@@ -212,12 +211,13 @@ class AttendanceRuleEngine:
         total_hours = self.calculate_total_hours(check_in_time, check_out_time)
         break_duration_seconds = self.get_break_duration(check_in_time, check_out_time)
         break_hours = break_duration_seconds / 3600
-        
+        frappe.log_error(message=f"total hours = {total_hours} break hours = {break_hours}",title="total hours")
         # Calculate net hours worked (after break deduction)
         net_hours_worked = total_hours - break_hours
         
         # Get required factory hours (this is NET working hours required)
         required_working_hours = self.get_required_factory_hours()
+        #frappe.log_error(message=f"net hours worked = {net_hours_worked} required working hours = {required_working_hours}",title="required hours")
         
         # Regular hours are capped at required working hours
         # Any hours beyond this are considered overtime
@@ -270,12 +270,13 @@ class AttendanceRuleEngine:
         
         # Get required factory hours (this is NET working hours required)
         required_working_hours = self.get_required_factory_hours()
+        frappe.log_error(message=f"net hours worked = {net_hours_worked} required working hours = {required_working_hours}",title="from deficiency calculation")
         
         # Calculate deficiency: required working hours - net hours worked
         # Note: required_factory_hours already represents NET working hours (no need to subtract break again)
         if net_hours_worked < required_working_hours:
             deficiency = required_working_hours - net_hours_worked
-            return deficiency if self.rule.allow_negative_hours else 0
+            return 0 if self.rule.allow_negative_hours else deficiency
         
         return 0
     
@@ -323,7 +324,8 @@ class AttendanceRuleEngine:
         # Calculate actual break duration (in seconds, convert to minutes)
         break_duration_seconds = self.get_break_duration(final_check_in, final_check_out)
         break_duration_minutes = int(break_duration_seconds / 60)
-        
+        #frappe.log_error(message=f"adjusted check in = {adjusted_check_in_dt} adjusted check out = {adjusted_check_out_dt}",title="adjusted check in and out")
+        #frappe.log_error(message=f"total hours = {total_hours} regular hours = {regular_hours} overtime hours = {overtime_hours} deficiency hours = {deficiency_hours} break duration minutes = {break_duration_minutes}",title="attendance summary")
         return {
             'total_hours': total_hours,
             'regular_hours': regular_hours,
@@ -380,4 +382,5 @@ def calculate_deficiency(check_out: str, check_in: str, employee: str, attendanc
     engine = AttendanceRuleEngine(employee, attendance_date)
     check_in_time = get_datetime(check_in).strftime('%H:%M:%S')
     check_out_time = get_datetime(check_out).strftime('%H:%M:%S')
+    frappe.log_error(message=f"check in time = {check_in_time} check out time = {check_out_time} {engine.calculate_deficiency(check_in_time, check_out_time)}",title="deficiency calculation")
     return engine.calculate_deficiency(check_in_time, check_out_time)
