@@ -252,15 +252,19 @@ class BulkAttendance(Document):
                 new_checkin_time = get_datetime(f"{item.check_in_date} {item.check_in_time}")
 
                 if item.checkin_docname:
-                    # Update existing checkin record
-                    frappe.db.set_value("Employee Checkin", item.checkin_docname, "time", new_checkin_time)
+                    # Update existing checkin record with both time and custom_attendance_date
+                    frappe.db.set_value("Employee Checkin", item.checkin_docname, {
+                        "time": new_checkin_time,
+                        "custom_attendance_date": item.day
+                    })
                 else:
                     # Create new checkin record
                     checkin_doc = frappe.get_doc({
                         "doctype": "Employee Checkin",
                         "employee": item.employee,
                         "log_type": "IN",
-                        "time": new_checkin_time
+                        "time": new_checkin_time,
+                        "custom_attendance_date": item.day
                     })
                     checkin_doc.insert()
                     item.checkin_docname = checkin_doc.name
@@ -276,15 +280,19 @@ class BulkAttendance(Document):
                 new_checkout_time = get_datetime(f"{item.check_out_date} {item.check_out_time}")
 
                 if item.checkout_docname:
-                    # Update existing checkout record
-                    frappe.db.set_value("Employee Checkin", item.checkout_docname, "time", new_checkout_time)
+                    # Update existing checkout record with both time and custom_attendance_date
+                    frappe.db.set_value("Employee Checkin", item.checkout_docname, {
+                        "time": new_checkout_time,
+                        "custom_attendance_date": item.day
+                    })
                 else:
                     # Create new checkout record
                     checkout_doc = frappe.get_doc({
                         "doctype": "Employee Checkin",
                         "employee": item.employee,
                         "log_type": "OUT",
-                        "time": new_checkout_time
+                        "time": new_checkout_time,
+                        "custom_attendance_date": item.day
                     })
                     checkout_doc.insert()
                     item.checkout_docname = checkout_doc.name
