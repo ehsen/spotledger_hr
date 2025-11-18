@@ -98,6 +98,11 @@ class CustomSalarySlip(SalarySlip):
         required_hours = self.get_required_factory_hours()
         hourly_rate = self.calculate_hourly_rate(base_salary, days_in_month, required_hours)
         
+        # Get overtime multipliers from Attendance Rule
+        overtime_multiplier = self.get_overtime_multiplier()
+        gzt_overtime_multiplier = self.get_gzt_overtime_multiplier()
+        frappe.log_error(message=f"overtime_multiplier = {overtime_multiplier}, gzt_overtime_multiplier = {gzt_overtime_multiplier}", title="overtime multipliers")
+        
         # Calculate gross salary based on days worked
         gross_salary = per_day_salary * payment_days_total
         frappe.log_error(message=f"gross salary = {gross_salary}, days worked = {days_worked}, payment days = {payment_days_total}, per day salary = {per_day_salary}", title="gross salary")
@@ -105,15 +110,17 @@ class CustomSalarySlip(SalarySlip):
         deficiency_hours = attendance_summary.get('deficiency_hours', 0)
         deficiency_amount = deficiency_hours * hourly_rate
         
-        # Calculate overtime amounts
-        overtime_amount = attendance_summary.get('overtime_hours', 0) * hourly_rate
-        gzt_overtime_amount = attendance_summary.get('gzt_overtime_hours', 0) * hourly_rate
+        # Calculate overtime amounts with multipliers
+        overtime_hours = attendance_summary.get('overtime_hours', 0)
+        gzt_overtime_hours = attendance_summary.get('gzt_overtime_hours', 0)
+        overtime_amount = overtime_hours * hourly_rate * overtime_multiplier
+        gzt_overtime_amount = gzt_overtime_hours * hourly_rate * gzt_overtime_multiplier
         
         # Get employee advances with IDs for linking to prevent duplicates
         advances_data = self.get_employee_advances_with_ids()
         advances_amount = advances_data['total_amount']
         advances_records = advances_data['records']
-        frappe.log_error(message=f"overtime amt = {overtime_amount}, deficiency amt = {deficiency_amount}, advances amt = {advances_amount}, base salary {base_salary}", title="salary amounts")
+        frappe.log_error(message=f"overtime amt = {overtime_amount} ({overtime_hours}hrs x {hourly_rate} x {overtime_multiplier}), gzt overtime amt = {gzt_overtime_amount} ({gzt_overtime_hours}hrs x {hourly_rate} x {gzt_overtime_multiplier}), deficiency amt = {deficiency_amount}, advances amt = {advances_amount}, base salary {base_salary}", title="salary amounts")
         
         # Clear existing earnings and deductions
         self.earnings = []
@@ -284,6 +291,40 @@ class CustomSalarySlip(SalarySlip):
         
         # Default to 8 hours if no attendance rule
         return 8.0
+    
+    def get_overtime_multiplier(self):
+        """
+        Get overtime multiplier from employee's attendance rule
+        Defaults to 1.0 (no multiplier) if not found
+        Used to calculate overtime pay: overtime_hours * hourly_rate * multiplier
+        """
+        employee = frappe.get_cached_doc("Employee", self.employee)
+        attendance_rule_name = employee.get("custom_attendance_rule")
+        
+        if attendance_rule_name:
+            attendance_rule = frappe.get_cached_doc("Attendance Rule", attendance_rule_name)
+            multiplier = flt(attendance_rule.overtime_multiplier, 2)
+            return multiplier if multiplier > 0 else 1.0
+        
+        # Default to 1.0 (100%) if no attendance rule
+        return 1.0
+    
+    def get_gzt_overtime_multiplier(self):
+        """
+        Get gazetted holiday overtime multiplier from employee's attendance rule
+        Defaults to 1.0 (no multiplier) if not found
+        Used to calculate gazetted overtime pay: gzt_overtime_hours * hourly_rate * multiplier
+        """
+        employee = frappe.get_cached_doc("Employee", self.employee)
+        attendance_rule_name = employee.get("custom_attendance_rule")
+        
+        if attendance_rule_name:
+            attendance_rule = frappe.get_cached_doc("Attendance Rule", attendance_rule_name)
+            multiplier = flt(attendance_rule.gazetted_overtime_multiplier, 2)
+            return multiplier if multiplier > 0 else 1.0
+        
+        # Default to 1.0 (100%) if no attendance rule
+        return 1.0
     
     def calculate_hourly_rate(self, monthly_salary, days_in_month, required_hours):
         """
