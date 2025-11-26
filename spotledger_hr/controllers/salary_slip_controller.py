@@ -136,7 +136,7 @@ class CustomSalarySlip(SalarySlip):
         if overtime_amount > 0:
             self.append('earnings', {
                 'salary_component': 'Overtime',
-                'amount':  500
+                'amount':  overtime_amount
             })
         
         if gzt_overtime_amount > 0:
