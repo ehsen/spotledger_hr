@@ -132,7 +132,7 @@ class CustomSalarySlip(SalarySlip):
                 'salary_component': 'Gross Salary',
                 'amount': gross_salary
             })
-        
+        frappe.log_error(message=f"overtime amount = {overtime_amount}", title="overtime amount")
         if overtime_amount > 0:
             self.append('earnings', {
                 'salary_component': 'Overtime',
