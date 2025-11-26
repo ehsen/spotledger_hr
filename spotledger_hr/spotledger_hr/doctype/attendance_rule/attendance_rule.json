@@ -136,6 +136,13 @@
         "description": "Applied if employee works on gazetted holiday"
       },
       {
+        "fieldname": "overtime_multiplier",
+        "fieldtype": "Float",
+        "label": "Overtime Multiplier",
+        "default": 1.5,
+        "description": "Applied if employee works on regular overtime"
+      },
+      {
         "fieldname": "force_hours_on_friday",
         "fieldtype": "Check",
         "label": "Force Full Hours on Friday",
