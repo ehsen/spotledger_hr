@@ -102,10 +102,13 @@ class AttendanceRuleEngine:
             
         dt_factory_time = self.get_current_datetime(self.attendance_date, factory_end_time)
         
-        # Calculate grace boundaries (times BEFORE factory end time)
-        min_check_out_time = dt_factory_time - timedelta(minutes=self.rule.checkout_max_grace_minutes)
-        threshold_check_out = dt_factory_time - timedelta(minutes=self.rule.checkout_grace_minutes)
-        
+        # Calculate grace boundaries
+        min_check_out_time = dt_factory_time - timedelta(minutes=self.rule.checkout_max_grace_minutes)  # Early cutoff
+        threshold_check_out = dt_factory_time - timedelta(minutes=self.rule.checkout_grace_minutes)  # Early grace
+
+        # Calculate late boundaries (times AFTER factory end time)
+        max_allowed_checkout = dt_factory_time + timedelta(minutes=self.rule.checkout_max_grace_minutes)  # Max late allowed
+        late_threshold = dt_factory_time + timedelta(minutes=self.rule.checkout_grace_minutes)  # Late grace
         # Friday prayer break handling
         if self.is_friday and self.rule.enable_friday_logic:
             friday_break_start = self.get_current_datetime(
@@ -122,18 +125,18 @@ class AttendanceRuleEngine:
             elif dt_check_out <= friday_break_end:
                 return dt_factory_time
         
-        # Regular grace period logic
-        # If checkout is after factory time, keep actual checkout
-        if dt_check_out > dt_factory_time:
+        # Regular grace period logic for checkouts
+        if dt_check_out < threshold_check_out:
+            # Early or within grace period before factory time - keep actual time
             return dt_check_out
-        # If checkout is within grace period of factory time (early but close), adjust to factory time
-        elif dt_check_out >= threshold_check_out:
+        elif dt_check_out <= late_threshold:
+            # Within grace period (slightly early or late) - adjust to factory time
             return dt_factory_time
-        # If checkout is between grace and max grace (early), adjust to min grace time
-        elif dt_check_out >= min_check_out_time:
-            return min_check_out_time
-        # If checkout is before min grace time (too early), keep actual checkout
+        elif dt_check_out <= max_allowed_checkout:
+            # Late beyond grace period but within max grace - adjust to max allowed time
+            return max_allowed_checkout
         else:
+            # Very late beyond max grace - keep actual time
             return dt_check_out
     
     def get_required_factory_hours(self) -> float:
@@ -232,26 +235,27 @@ class AttendanceRuleEngine:
         Overtime = Net hours worked - Required working hours
         """
         total_hours = self.calculate_total_hours(check_in_time, check_out_time)
-        
+
         # Calculate net hours after break deduction
         break_duration_seconds = self.get_break_duration(check_in_time, check_out_time)
         break_hours = break_duration_seconds / 3600
         net_hours_worked = total_hours - break_hours
-        
+
         # Gazetted holiday overtime
         if self.is_gazetted:
             return net_hours_worked * self.rule.gazetted_overtime_multiplier
-        
+
         # Get required factory hours (this is NET working hours required)
         required_working_hours = self.get_required_factory_hours()
-        
+
         # Calculate overtime: net hours worked - required working hours
         # Note: required_factory_hours already represents NET working hours (no need to subtract break again)
         if net_hours_worked > required_working_hours:
             overtime = net_hours_worked - required_working_hours
             return max(0, overtime)
-        
+
         return 0
+
     
     def calculate_deficiency(self, check_in_time: str, check_out_time: str) -> float:
         """
@@ -306,7 +310,7 @@ class AttendanceRuleEngine:
         """
         # Handle overnight shifts
         adjusted_check_in, adjusted_check_out = self.handle_overnight_shift(check_in_time, check_out_time)
-        
+
         # Apply grace period adjustments
         adjusted_check_in_dt = self.get_time_after_grace_in(adjusted_check_in.split(' ')[1])
         adjusted_check_out_dt = self.get_time_after_grace_out(adjusted_check_out.split(' ')[1])
