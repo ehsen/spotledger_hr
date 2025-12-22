@@ -134,18 +134,5 @@ def get_employee_qr_code_with_legacy_code(employee_id):
     Returns:
         str: Base64 data URL for QR code image
     """
-    try:
-        employee = frappe.get_doc("Employee", employee_id)
-        
-        # Use custom_old_code if available, otherwise use employee name
-        qr_data = employee.name
-        if hasattr(employee, 'custom_old_code') and employee.custom_old_code:
-            qr_data = employee.custom_old_code
-        elif employee.employee_name:
-            qr_data = f"{employee.name}"
-            
-        return get_qr_code(qr_data)
-        
-    except Exception as e:
-        frappe.logger().error(f"Employee QR Code generation error: {str(e)}")
-        frappe.throw(f"Error generating QR code for employee {employee_id}: {str(e)}")
+    employee = frappe.get_doc("Employee", employee_id)
+    return get_qr_code(employee.name)
