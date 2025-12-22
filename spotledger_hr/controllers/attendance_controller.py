@@ -89,11 +89,11 @@ class AttendanceController(Attendance):
         try:
             # Initialize attendance rule engine
             engine = AttendanceRuleEngine(self.employee, self.attendance_date)
-            
+
             # Get check-in and check-out times from our custom fields
             check_in_time = get_datetime(self.custom_check_in_time).strftime('%H:%M:%S')
             check_out_time = get_datetime(self.custom_check_out_time).strftime('%H:%M:%S')
-            
+
             # Calculate comprehensive attendance summary
             summary = engine.calculate_attendance_summary(check_in_time, check_out_time)
             
@@ -113,14 +113,14 @@ class AttendanceController(Attendance):
     
     def update_attendance_fields(self, summary: Dict[str, Any]):
         """Update attendance record with calculated metrics"""
-        # Basic calculated fields
-        self.custom_regular_hours = summary.get('regular_hours', 0)
-        self.custom_overtime_hours = summary.get('overtime_hours', 0)
-        self.custom_deficiency_hours = summary.get('deficiency_hours', 0)
-        self.custom_total_hours = summary.get('total_hours', 0)
-        
+        # Basic calculated fields - cap values to prevent database errors
+        self.custom_regular_hours = min(summary.get('regular_hours', 0), 24)  # Max 24 hours
+        self.custom_overtime_hours = min(summary.get('overtime_hours', 0), 24)  # Max 24 hours
+        self.custom_deficiency_hours = min(summary.get('deficiency_hours', 0), 24)  # Max 24 hours
+        self.custom_total_hours = min(summary.get('total_hours', 0), 48)  # Max 48 hours
+
         # Break information
-        self.custom_break_duration_minutes = summary.get('break_duration_minutes', 0)
+        self.custom_break_duration_minutes = min(summary.get('break_duration_minutes', 0), 1440)  # Max 24 hours in minutes
         
         # Day type flags
         self.custom_is_friday = summary.get('is_friday', False)
@@ -128,9 +128,20 @@ class AttendanceController(Attendance):
         
         # Adjusted times
         if summary.get('adjusted_check_in'):
-            self.custom_adjusted_check_in = summary['adjusted_check_in']
+            # Ensure it's a datetime object and convert to string if needed
+            check_in_dt = summary['adjusted_check_in']
+            if hasattr(check_in_dt, 'strftime'):
+                self.custom_adjusted_check_in = check_in_dt.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                self.custom_adjusted_check_in = str(check_in_dt)[:19]  # Limit string length
+
         if summary.get('adjusted_check_out'):
-            self.custom_adjusted_check_out = summary['adjusted_check_out']
+            # Ensure it's a datetime object and convert to string if needed
+            check_out_dt = summary['adjusted_check_out']
+            if hasattr(check_out_dt, 'strftime'):
+                self.custom_adjusted_check_out = check_out_dt.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                self.custom_adjusted_check_out = str(check_out_dt)[:19]  # Limit string length
         
         # Calculate working hours for ERPNext compatibility
         self.working_hours = summary.get('regular_hours', 0)
@@ -298,6 +309,23 @@ def update_attendance_fields_from_summary(doc, summary: Dict[str, Any]):
             doc.status = 'Present'  # Mark as half day if there's deficiency
     elif summary.get('regular_hours', 0) >= 8.0:  # Assuming 8 hours is full day
         doc.status = 'Present'
+
+
+@frappe.whitelist()
+def test_attendance_calculation(employee: str, attendance_date: str, check_in_time: str, check_out_time: str) -> Dict[str, Any]:
+    """
+    Test attendance calculation without creating records
+    """
+    try:
+        frappe.log_error(f"Testing calculation for {employee} on {attendance_date}", "TEST")
+        from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
+        engine = AttendanceRuleEngine(employee, attendance_date)
+        summary = engine.calculate_attendance_summary(check_in_time, check_out_time)
+        frappe.log_error(f"Test result: {summary}", "TEST")
+        return {'success': True, 'summary': summary}
+    except Exception as e:
+        frappe.log_error(f"Test failed: {str(e)}", "TEST")
+        return {'success': False, 'error': str(e)}
 
 
 @frappe.whitelist()

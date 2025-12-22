@@ -50,7 +50,10 @@ app_include_js = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-doctype_js = {"Employee" : "spotledger_hr/public/js/employee_qr_code.js"}
+doctype_js = {
+    "Employee": "spotledger_hr/public/js/employee_qr_code.js",
+    "Salary Slip": "spotledger_hr/public/js/salary_slip.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -138,7 +141,7 @@ jinja = {
 
 override_doctype_class = {
 	"Attendance": "spotledger_hr.controllers.attendance_controller.AttendanceController",
-	"Salary Slip": "spotledger_hr.controllers.salary_slip_controller.CustomSalarySlip",
+	"Salary Slip": "spotledger_hr.controllers.custom_salary_slip.CustomSalarySlip",
 	"Payroll Entry": "spotledger_hr.controllers.payroll_entry_controller.CustomPayrollEntry"
 }
 

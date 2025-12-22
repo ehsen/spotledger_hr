@@ -20,16 +20,35 @@ class CustomSalarySlip(SalarySlip):
     """
     
     def validate(self):
-        
+
         """Override validate to inject attendance-based salary calculation"""
-        # Check if employee requires attendance-based salary
+        # For attendance-based employees, calculate salary before standard validation
         if self.should_calculate_from_attendance():
-            # Calculate salary based on attendance before standard validation
             self.calculate_attendance_based_salary()
-        
-        # Call parent validation (standard Frappe HRMS flow)
+        else:
+            # For regular employees, ensure earnings/deductions are cleared so parent validation
+            # will reload them from salary structure
+            if not hasattr(self, '_custom_calculation_done'):
+                self.set("earnings", [])
+                self.set("deductions", [])
+
+        # Always call parent validation (standard Frappe HRMS flow)
         super().validate()
-    
+
+        # For regular employees, if no components were loaded, add basic salary component
+        if not self.should_calculate_from_attendance():
+            frappe.log_error(message="add_basic_salary_component", title="CustomSalarySlip called")
+            self.add_basic_salary_component()
+        
+
+
+        # Ensure tax components are added for both attendance and regular employees
+        #self.ensure_tax_components()
+        super().add_tax_components()
+        #super().validate()
+        #super().add_tax_components()
+        #super().validate()
+
     def on_submit(self):
         """Link advance deduction records to salary slip to prevent duplicate application"""
         super().on_submit()
@@ -49,18 +68,17 @@ class CustomSalarySlip(SalarySlip):
     def should_calculate_from_attendance(self):
         """
         Check if employee requires attendance-based salary calculation
-        Returns True if both custom flags are enabled
+        Returns True if custom_generate_salary_based_on_attendance is enabled
         """
         if not self.employee:
             return False
-        
+
         employee = frappe.get_cached_doc("Employee", self.employee)
-        
-        # Check both required flags
-        attendance_required = employee.get("custom_attendance_required", 0)
+
+        # Check if salary should be generated based on attendance
         salary_based_on_attendance = employee.get("custom_generate_salary_based_on_attendance", 0)
-        
-        return attendance_required and salary_based_on_attendance
+        frappe.log_error(message=f"salary_based_on_attendance = {salary_based_on_attendance}", title="salary_based_on_attendance")
+        return salary_based_on_attendance
     
     def calculate_attendance_based_salary(self):
         """
@@ -158,6 +176,9 @@ class CustomSalarySlip(SalarySlip):
                 'amount': advances_amount
             })
         
+        # Mark that custom calculation has been done
+        self._custom_calculation_done = True
+
         # Add custom fields if they exist
         if hasattr(self, 'custom_attendance_based_calculation'):
             self.custom_attendance_based_calculation = 1
@@ -456,6 +477,57 @@ class CustomSalarySlip(SalarySlip):
             'records': advances,
             'total_amount': total_amount
         }
+
+    def add_basic_salary_component(self):
+        """
+        Add basic salary component for regular employees when salary structure has no components
+        """
+        base_salary = self.get_base_salary_from_structure()
+
+        if base_salary and base_salary > 0:
+            # Add basic salary as earning
+            self.append('earnings', {
+                'salary_component': 'Gross Salary',
+                'amount': base_salary
+            })
+
+        # Check for employee advances and add as deductions
+        advances_data = self.get_employee_advances_with_ids()
+        advances_amount = advances_data['total_amount']
+
+        if advances_amount > 0:
+            self.append('deductions', {
+                'salary_component': 'Advances',
+                'amount': advances_amount
+            })
+
+
+    def ensure_tax_components(self):
+        """
+        Ensure tax components are added to deductions for both attendance and regular employees
+        The parent class will handle the actual tax calculation
+        """
+        try:
+            # Only proceed if we have salary structure
+            if not self.salary_structure:
+                return
+
+            # Set salary structure doc if not already set
+            
+
+            # Add tax components using ERPNext's built-in logic
+            # This will add tax components to deductions if they don't exist
+            #self.add_tax_components()
+            self.append('deductions', {
+                'salary_component': 'Income Tax',
+                'amount': 0
+            })
+
+        except Exception as e:
+            frappe.log_error(
+                message=f"Error ensuring tax components: {str(e)}",
+                title="Tax Components Error"
+            )
 
 
 # Helper functions for compatibility with legacy code
