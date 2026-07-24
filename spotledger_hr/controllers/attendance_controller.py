@@ -198,130 +198,15 @@ class AttendanceController(Attendance):
         pass
 
 
-def on_attendance_validate(doc, method=None):
-    """
-    Event handler for Attendance validation
-    Called via doc_events hook to calculate attendance metrics
-    """
-    # Check if custom fields exist before accessing them
-    if not hasattr(doc, 'custom_manual_attendance') or not hasattr(doc, 'custom_check_in_time') or not hasattr(doc, 'custom_check_out_time'):
-        # Skip custom processing if fields don't exist
-        return
-    
-    # Fetch check-in/check-out times from Employee Checkin if not manual
-    if not doc.custom_manual_attendance:
-        fetch_checkin_checkout_from_employee_checkin_for_doc(doc)
-    
-    # Only calculate if both custom check-in and check-out times are present
-    if doc.custom_check_in_time and doc.custom_check_out_time:
-        if AttendanceRuleEngine is None:
-            frappe.msgprint(_("Attendance Rule Engine not available. Skipping custom calculations."), 
-                          alert=True, indicator='orange')
-            return
-            
-        try:
-            # Initialize attendance rule engine
-            engine = AttendanceRuleEngine(doc.employee, doc.attendance_date)
-            
-            # Get check-in and check-out times from our custom fields
-            check_in_time = get_datetime(doc.custom_check_in_time).strftime('%H:%M:%S')
-            check_out_time = get_datetime(doc.custom_check_out_time).strftime('%H:%M:%S')
-            
-            # Calculate comprehensive attendance summary
-            summary = engine.calculate_attendance_summary(check_in_time, check_out_time)
-            
-            # Update attendance fields
-            update_attendance_fields_from_summary(doc, summary)
-            
-        except Exception as e:
-            frappe.log_error(f"Error calculating attendance metrics: {str(e)}", "Attendance Calculation Error")
-            # Don't throw error, just log it to avoid blocking attendance creation
-            frappe.msgprint(_("Warning: Could not calculate attendance metrics. Please check attendance rule configuration."), 
-                          alert=True, indicator='orange')
-
-
-def fetch_checkin_checkout_from_employee_checkin_for_doc(doc):
-    """Fetch check-in and check-out times from Employee Checkin records for a doc
-    Uses custom_attendance_date field to handle overnight shifts"""
-    if not doc.employee or not doc.attendance_date:
-        return
-    
-    # Get Employee Checkin records for this employee with matching custom_attendance_date
-    checkins = frappe.get_all(
-        "Employee Checkin",
-        filters={
-            "employee": doc.employee,
-            "attendance": ["in", ["", None]],  # Not already linked to an attendance
-            "custom_attendance_date": doc.attendance_date
-        },
-        fields=["name", "time", "log_type"],
-        order_by="time asc"
-    )
-    
-    if not checkins:
-        return
-    
-    # Find first IN and last OUT
-    check_in_record = None
-    check_out_record = None
-    
-    for checkin in checkins:
-        if checkin.log_type == "IN" and not check_in_record:
-            check_in_record = checkin
-        elif checkin.log_type == "OUT":
-            check_out_record = checkin
-    
-    # Set the times
-    if check_in_record:
-        doc.custom_check_in_time = check_in_record.time
-    
-    if check_out_record:
-        doc.custom_check_out_time = check_out_record.time
-
-
-def update_attendance_fields_from_summary(doc, summary: Dict[str, Any]):
-    """Update attendance document fields with calculated metrics"""
-    # Basic calculated fields
-    doc.custom_regular_hours = summary.get('regular_hours', 0)
-    doc.custom_overtime_hours = summary.get('overtime_hours', 0)
-    doc.custom_deficiency_hours = summary.get('deficiency_hours', 0)
-    doc.custom_total_hours = summary.get('total_hours', 0)
-    
-    # Break information
-    doc.custom_break_duration_minutes = summary.get('break_duration_minutes', 0)
-    
-    # Day type flags
-    doc.custom_is_friday = summary.get('is_friday', False)
-    doc.custom_is_gazetted_holiday = summary.get('is_gazetted_holiday', False)
-    
-    # Adjusted times
-    if summary.get('adjusted_check_in'):
-        doc.custom_adjusted_check_in = summary['adjusted_check_in']
-    if summary.get('adjusted_check_out'):
-        doc.custom_adjusted_check_out = summary['adjusted_check_out']
-    
-    # Calculate working hours for ERPNext compatibility
-    doc.working_hours = summary.get('regular_hours', 0)
-    
-    # Set status based on deficiency
-    if summary.get('deficiency_hours', 0) > 0:
-        if doc.status != 'Absent':
-            doc.status = 'Present'  # Mark as half day if there's deficiency
-    elif summary.get('regular_hours', 0) >= 8.0:  # Assuming 8 hours is full day
-        doc.status = 'Present'
-
-
 @frappe.whitelist()
 def test_attendance_calculation(employee: str, attendance_date: str, check_in_time: str, check_out_time: str) -> Dict[str, Any]:
     """
     Test attendance calculation without creating records
     """
     try:
-        frappe.log_error(f"Testing calculation for {employee} on {attendance_date}", "TEST")
         from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
         engine = AttendanceRuleEngine(employee, attendance_date)
         summary = engine.calculate_attendance_summary(check_in_time, check_out_time)
-        frappe.log_error(f"Test result: {summary}", "TEST")
         return {'success': True, 'summary': summary}
     except Exception as e:
         frappe.log_error(f"Test failed: {str(e)}", "TEST")

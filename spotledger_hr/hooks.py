@@ -141,19 +141,17 @@ jinja = {
 
 override_doctype_class = {
 	"Attendance": "spotledger_hr.controllers.attendance_controller.AttendanceController",
-	#"Salary Slip": "spotledger_hr.controllers.custom_salary_slip.CustomSalarySlip",
-	#"Payroll Entry": "spotledger_hr.controllers.payroll_entry_controller.CustomPayrollEntry"
+	# Attendance-based payroll decision pending - see salary_slip_controller.CustomSalarySlip
+	#"Salary Slip": "spotledger_hr.controllers.salary_slip_controller.CustomSalarySlip",
 }
 
 # Document Events
 # ---------------
 # Hook on document methods and events
 
-doc_events = {
-	"Attendance": {
-		"validate": "spotledger_hr.controllers.attendance_controller.on_attendance_validate"
-	}
-}
+# Attendance validation is handled by AttendanceController.validate() via
+# override_doctype_class above - no separate doc_events hook needed (having
+# both caused the attendance rule engine to run twice per save).
 
 # Scheduled Tasks
 # ---------------

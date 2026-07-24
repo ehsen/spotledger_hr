@@ -73,13 +73,11 @@ class AttendanceRuleEngine:
             as_datetime=True
         )
         threshold_check_in = add_to_date(
-            dt_factory_time, 
-            minutes=self.rule.checkin_grace_minutes, 
+            dt_factory_time,
+            minutes=self.rule.checkin_grace_minutes,
             as_datetime=True
         )
 
-        frappe.log_error(message=f"dt_factory_time = {dt_factory_time} threshold_check_in = {threshold_check_in} max_check_in_time = {max_check_in_time}",title="check in time")
-        
         if dt_check_in <= threshold_check_in:
             return dt_factory_time
         elif dt_check_in <= max_check_in_time:
@@ -203,7 +201,6 @@ class AttendanceRuleEngine:
         dt_check_out = get_datetime(f"{self.attendance_date} {check_out_time}")
         
         total_seconds = time_diff_in_seconds(dt_check_out, dt_check_in)
-        #frappe.log_error(message=f"Total seconds: {total_seconds} {dt_check_out} {dt_check_in   } {ti}",title="Total seconds")
         return total_seconds / 3600  # Convert to hours
     
     def calculate_regular_hours(self, check_in_time: str, check_out_time: str) -> float:
@@ -214,14 +211,12 @@ class AttendanceRuleEngine:
         total_hours = self.calculate_total_hours(check_in_time, check_out_time)
         break_duration_seconds = self.get_break_duration(check_in_time, check_out_time)
         break_hours = break_duration_seconds / 3600
-        frappe.log_error(message=f"total hours = {total_hours} break hours = {break_hours}",title="total hours")
         # Calculate net hours worked (after break deduction)
         net_hours_worked = total_hours - break_hours
-        
+
         # Get required factory hours (this is NET working hours required)
         required_working_hours = self.get_required_factory_hours()
-        #frappe.log_error(message=f"net hours worked = {net_hours_worked} required working hours = {required_working_hours}",title="required hours")
-        
+
         # Regular hours are capped at required working hours
         # Any hours beyond this are considered overtime
         if net_hours_worked > required_working_hours:
@@ -274,8 +269,7 @@ class AttendanceRuleEngine:
         
         # Get required factory hours (this is NET working hours required)
         required_working_hours = self.get_required_factory_hours()
-        frappe.log_error(message=f"net hours worked = {net_hours_worked} required working hours = {required_working_hours}",title="from deficiency calculation")
-        
+
         # Calculate deficiency: required working hours - net hours worked
         # Note: required_factory_hours already represents NET working hours (no need to subtract break again)
         if net_hours_worked < required_working_hours:
@@ -328,8 +322,6 @@ class AttendanceRuleEngine:
         # Calculate actual break duration (in seconds, convert to minutes)
         break_duration_seconds = self.get_break_duration(final_check_in, final_check_out)
         break_duration_minutes = int(break_duration_seconds / 60)
-        #frappe.log_error(message=f"adjusted check in = {adjusted_check_in_dt} adjusted check out = {adjusted_check_out_dt}",title="adjusted check in and out")
-        #frappe.log_error(message=f"total hours = {total_hours} regular hours = {regular_hours} overtime hours = {overtime_hours} deficiency hours = {deficiency_hours} break duration minutes = {break_duration_minutes}",title="attendance summary")
         return {
             'total_hours': total_hours,
             'regular_hours': regular_hours,
@@ -386,5 +378,4 @@ def calculate_deficiency(check_out: str, check_in: str, employee: str, attendanc
     engine = AttendanceRuleEngine(employee, attendance_date)
     check_in_time = get_datetime(check_in).strftime('%H:%M:%S')
     check_out_time = get_datetime(check_out).strftime('%H:%M:%S')
-    frappe.log_error(message=f"check in time = {check_in_time} check out time = {check_out_time} {engine.calculate_deficiency(check_in_time, check_out_time)}",title="deficiency calculation")
     return engine.calculate_deficiency(check_in_time, check_out_time)
