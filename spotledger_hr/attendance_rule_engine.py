@@ -35,12 +35,19 @@ class AttendanceRuleEngine:
         return getdate(self.attendance_date).weekday() == 4  # 4 = Friday
     
     def _is_gazetted_holiday(self) -> bool:
-        """Check if attendance date is a gazetted holiday"""
+        """Check if attendance date is a gazetted holiday
+
+        only_non_weekly=True excludes recurring weekly-off rows (e.g. Friday)
+        from counting as a gazetted holiday - Friday already has its own
+        dedicated handling via enable_friday_logic, and without this flag a
+        Holiday List that auto-populates weekly offs would misclassify every
+        Friday as gazetted, doubling overtime and zeroing deficiency on those days.
+        """
         try:
             holiday_list = get_holiday_list_for_employee(self.employee, raise_exception=False)
             if not holiday_list:
                 return False
-            return is_holiday(self.employee, self.attendance_date, raise_exception=False)
+            return is_holiday(self.employee, self.attendance_date, raise_exception=False, only_non_weekly=True)
         except Exception:
             return False
     
@@ -236,9 +243,15 @@ class AttendanceRuleEngine:
         break_hours = break_duration_seconds / 3600
         net_hours_worked = total_hours - break_hours
 
-        # Gazetted holiday overtime
+        # Gazetted holiday: no required-hours threshold, every hour worked is
+        # overtime. Return raw hours here (not pre-multiplied by
+        # gazetted_overtime_multiplier) - the multiplier is a pay-rate concern
+        # applied once downstream at payroll time. Baking it in here would
+        # double-apply it wherever payroll also multiplies by the same rate,
+        # and would make this field not comparable to raw hours on a manual
+        # attendance card.
         if self.is_gazetted:
-            return net_hours_worked * self.rule.gazetted_overtime_multiplier
+            return net_hours_worked
 
         # Get required factory hours (this is NET working hours required)
         required_working_hours = self.get_required_factory_hours()
