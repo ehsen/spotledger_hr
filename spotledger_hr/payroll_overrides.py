@@ -52,6 +52,51 @@ def split_party_required_lines(doc, method=None):
     for new_row in rows_to_add:
         doc.append("accounts", new_row)
 
+    _merge_same_account_no_party_lines(doc)
+
+
+def _merge_same_account_no_party_lines(doc):
+    """
+    Some Salary Components (e.g. Deficiency / "-Ve Overtime") are meant to
+    stay fully visible as their own row on the Salary Slip, but should NOT
+    show up as a separate line in the accrual JV - they're just a
+    reduction of the same expense the earnings already debit. HRMS builds
+    one JV row per (account) from its earnings dict and a separate one
+    from its deductions dict, so the same account can end up with two
+    rows (e.g. 510114 debit 35,673 from earnings + 510114 credit 844 from
+    Deficiency) instead of one net figure.
+
+    This collapses any set of rows that share the same account, cost
+    center, and have NO party, into a single net row - keeping every
+    party-attributed row (Payroll Payable per employee, Advances per
+    employee, etc.) completely untouched.
+    """
+    groups = {}
+    for row in doc.accounts:
+        if row.party:
+            continue
+        key = (row.account, row.cost_center)
+        groups.setdefault(key, []).append(row)
+
+    for (account, cost_center), rows in groups.items():
+        if len(rows) < 2:
+            continue
+
+        net = sum(r.debit_in_account_currency or 0 for r in rows) - sum(
+            r.credit_in_account_currency or 0 for r in rows
+        )
+        ref_row = rows[0]
+        for row in rows:
+            doc.accounts.remove(row)
+
+        doc.append("accounts", {
+            "account": account,
+            "cost_center": cost_center,
+            "debit_in_account_currency": net if net >= 0 else 0,
+            "credit_in_account_currency": -net if net < 0 else 0,
+            "exchange_rate": ref_row.exchange_rate,
+        })
+
 
 def _get_per_employee_amounts(payroll_entry, account, company):
     """{employee: total_amount} across all submitted slips in this Payroll Entry

@@ -142,7 +142,54 @@ class TestPayrollOverrides(unittest.TestCase):
 
         self.assertEqual(result, {"EMP-001": 150.0, "EMP-002": 250.0})
 
+    def test_merge_same_account_no_party_lines(self):
+        from spotledger_hr.payroll_overrides import _merge_same_account_no_party_lines
+
+        doc = MagicMock()
+        
+        row1 = MagicMock()
+        row1.account = "510114 - Direct Salaries - BFI"
+        row1.cost_center = "Main - BFI"
+        row1.party = None
+        row1.debit_in_account_currency = 35673.0
+        row1.credit_in_account_currency = 0
+        row1.exchange_rate = 1.0
+
+        row2 = MagicMock()
+        row2.account = "510114 - Direct Salaries - BFI"
+        row2.cost_center = "Main - BFI"
+        row2.party = None
+        row2.debit_in_account_currency = 0
+        row2.credit_in_account_currency = 844.0
+        row2.exchange_rate = 1.0
+
+        row_with_party = MagicMock()
+        row_with_party.account = "211000 - Payroll Payable - BFI"
+        row_with_party.cost_center = "Main - BFI"
+        row_with_party.party = "EMP-001"
+        row_with_party.party_type = "Employee"
+
+        accounts_list = [row1, row2, row_with_party]
+        doc.accounts = accounts_list
+
+        added_rows = []
+        doc.append.side_effect = lambda key, val: added_rows.append(val)
+
+        _merge_same_account_no_party_lines(doc)
+
+
+        self.assertNotIn(row1, doc.accounts)
+        self.assertNotIn(row2, doc.accounts)
+        self.assertIn(row_with_party, doc.accounts)
+
+        self.assertEqual(len(added_rows), 1)
+        self.assertEqual(added_rows[0]["account"], "510114 - Direct Salaries - BFI")
+        self.assertEqual(added_rows[0]["cost_center"], "Main - BFI")
+        self.assertEqual(added_rows[0]["debit_in_account_currency"], 34829.0)
+        self.assertEqual(added_rows[0]["credit_in_account_currency"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
