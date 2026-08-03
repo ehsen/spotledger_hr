@@ -269,6 +269,13 @@ fixtures = [
             ["name", "in", ["Gross Salary", "Overtime", "Overtime GZT", "Advances"]]
         ]
     },
-    
-    
+
+
+]
+
+# Frappe Assistant Core (MCP) tool integration
+# ---------------------------------------------
+assistant_tools = [
+	"spotledger_hr.tools.attendance_checker_tool.AttendanceCheckerTool",
+	"spotledger_hr.tools.submit_salary_slips_tool.SubmitSalarySlipsTool"
 ]
