@@ -153,6 +153,13 @@ override_doctype_class = {
 # override_doctype_class above - no separate doc_events hook needed (having
 # both caused the attendance rule engine to run twice per save).
 
+doc_events = {
+	"Journal Entry": {
+		"before_validate": "spotledger_hr.payroll_overrides.split_party_required_lines",
+	}
+}
+
+
 # Scheduled Tasks
 # ---------------
 

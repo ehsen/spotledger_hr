@@ -21,7 +21,8 @@ def run_attendance_tests():
     # Test modules to run
     test_modules = [
         'spotledger_hr.tests.test_attendance_rule_engine',
-        'spotledger_hr.tests.test_attendance_controller'
+        'spotledger_hr.tests.test_attendance_controller',
+        'spotledger_hr.tests.test_payroll_overrides'
     ]
     
     # Test classes to run
@@ -37,8 +38,10 @@ def run_attendance_tests():
         'TestEdgeCases',
         'TestAttendanceController',
         'TestAttendanceControllerAPI',
-        'TestAttendanceControllerIntegration'
+        'TestAttendanceControllerIntegration',
+        'TestPayrollOverrides'
     ]
+
     
     # Create test suite
     suite = unittest.TestSuite()
