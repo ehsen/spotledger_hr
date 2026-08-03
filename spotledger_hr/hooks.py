@@ -277,5 +277,6 @@ fixtures = [
 # ---------------------------------------------
 assistant_tools = [
 	"spotledger_hr.tools.attendance_checker_tool.AttendanceCheckerTool",
-	"spotledger_hr.tools.submit_salary_slips_tool.SubmitSalarySlipsTool"
+	"spotledger_hr.tools.submit_salary_slips_tool.SubmitSalarySlipsTool",
+	"spotledger_hr.tools.create_salary_slips_tool.CreateSalarySlipsTool"
 ]
