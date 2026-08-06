@@ -131,9 +131,5 @@ def _get_per_employee_amounts(payroll_entry, account, company):
 
 
 def _employee_cost_center(payroll_entry, employee):
-    """Retrieve the cost center from the employee's submitted Salary Slip."""
-    return frappe.db.get_value(
-        "Salary Slip",
-        {"payroll_entry": payroll_entry, "employee": employee, "docstatus": 1},
-        "cost_center"
-    )
+    """Retrieve the payroll cost center from the Employee master."""
+    return frappe.db.get_value("Employee", employee, "payroll_cost_center")
