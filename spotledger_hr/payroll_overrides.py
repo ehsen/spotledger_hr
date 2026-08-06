@@ -20,32 +20,36 @@ def split_party_required_lines(doc, method=None):
     if not payroll_entry:
         return
 
+    # Group original party-less rows by account (there may be >1, one per cost center)
+    rows_by_account = {}
+    for row in doc.accounts:
+        if row.account in PER_EMPLOYEE_PARTY_ACCOUNTS and not row.party:
+            rows_by_account.setdefault(row.account, []).append(row)
+
     rows_to_remove = []
     rows_to_add = []
 
-    for row in doc.accounts:
-        if row.account not in PER_EMPLOYEE_PARTY_ACCOUNTS:
-            continue
-        if row.party:
-            continue  # already has a party - nothing to do
-
-        per_employee = _get_per_employee_amounts(payroll_entry, row.account, doc.company)
+    for account, rows in rows_by_account.items():
+        # compute per-employee amounts ONCE per account, not once per row
+        per_employee = _get_per_employee_amounts(payroll_entry, account, doc.company)
         if not per_employee:
             continue
 
+        is_debit = bool(rows[0].debit_in_account_currency)
         for employee, amount in per_employee.items():
+            cost_center = _employee_cost_center(payroll_entry, employee) or rows[0].cost_center
             rows_to_add.append({
-                "account": row.account,
-                "cost_center": row.cost_center,
+                "account": account,
+                "cost_center": cost_center,
                 "party_type": "Employee",
                 "party": employee,
-                "debit_in_account_currency": amount if row.debit_in_account_currency else 0,
-                "credit_in_account_currency": amount if row.credit_in_account_currency else 0,
-                "exchange_rate": row.exchange_rate,
+                "debit_in_account_currency": amount if is_debit else 0,
+                "credit_in_account_currency": amount if not is_debit else 0,
+                "exchange_rate": rows[0].exchange_rate,
                 "reference_type": "Payroll Entry",
                 "reference_name": payroll_entry,
             })
-        rows_to_remove.append(row)
+        rows_to_remove.extend(rows)
 
     for row in rows_to_remove:
         doc.accounts.remove(row)
@@ -124,3 +128,12 @@ def _get_per_employee_amounts(payroll_entry, account, company):
             totals[slip.employee] = totals.get(slip.employee, 0) + amount
 
     return totals
+
+
+def _employee_cost_center(payroll_entry, employee):
+    """Retrieve the cost center from the employee's submitted Salary Slip."""
+    return frappe.db.get_value(
+        "Salary Slip",
+        {"payroll_entry": payroll_entry, "employee": employee, "docstatus": 1},
+        "cost_center"
+    )

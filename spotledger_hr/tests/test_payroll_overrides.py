@@ -56,8 +56,10 @@ class TestPayrollOverrides(unittest.TestCase):
         split_party_required_lines(doc)
         doc.append.assert_not_called()
 
+    @patch("spotledger_hr.payroll_overrides._employee_cost_center")
     @patch("spotledger_hr.payroll_overrides._get_per_employee_amounts")
-    def test_split_lines_success(self, mock_get_per_employee):
+    def test_split_lines_success(self, mock_get_per_employee, mock_cost_center):
+        mock_cost_center.return_value = "Main - BFI"
         mock_get_per_employee.return_value = {
             "EMP-001": 500.0,
             "EMP-002": 300.0,
