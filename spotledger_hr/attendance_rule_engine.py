@@ -195,6 +195,9 @@ class AttendanceRuleEngine:
             return 0
         # If checkout after break end, full break deduction
         elif dt_check_out > break_times['end']:
+            if self.is_friday and self.rule.enable_friday_logic:
+                # Friday break is dynamic based on start/end times, not break_duration_minutes
+                return int(time_diff_in_seconds(break_times['end'], break_times['start']))
             return self.rule.break_duration_minutes * 60  # Convert to seconds
         
         return 0
