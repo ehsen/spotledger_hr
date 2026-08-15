@@ -134,7 +134,7 @@ class AttendanceRuleEngine:
         if dt_check_out < threshold_check_out:
             # Early or within grace period before factory time - keep actual time
             return dt_check_out
-        elif dt_check_out <= late_threshold:
+        elif dt_check_out < late_threshold:
             # Within grace period (slightly early or late) - adjust to factory time
             return dt_factory_time
         elif dt_check_out <= max_allowed_checkout:
