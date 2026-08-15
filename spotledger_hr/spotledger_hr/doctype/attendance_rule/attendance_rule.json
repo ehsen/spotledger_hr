@@ -14,190 +14,211 @@
     "read_only": 0,
     "title_field": "company",
     "fields": [
-      {
-        "fieldname": "company",
-        "fieldtype": "Link",
-        "label": "Company",
-        "options": "Company",
-        "reqd": 1
-      },
-      {
-        "fieldname": "tab_basic",
-        "fieldtype": "Tab Break",
-        "label": "Basic Shift Info"
-      },
-      {
-        "fieldname": "factory_start_time",
-        "fieldtype": "Time",
-        "label": "Start Time",
-        "reqd": 1
-      },
-      {
-        "fieldname": "factory_end_time",
-        "fieldtype": "Time",
-        "label": "End Time",
-        "reqd": 1
-      },
-      {
-        "fieldname": "required_factory_hours",
-        "fieldtype": "Float",
-        "label": "Required Working Hours (Hrs)",
-        "default": 8.5,
-        "reqd": 1
-      },
-      {
-        "fieldname": "friday_start_time",
-        "fieldtype": "Time",
-        "label": "Friday Start Time",
-        "description": "Start time for Friday (if different from regular start time)"
-      },
-      {
-        "fieldname": "friday_end_time",
-        "fieldtype": "Time",
-        "label": "Friday End Time",
-        "description": "End time for Friday (if different from regular end time)"
-      },
-      {
-        "fieldname": "tab_grace",
-        "fieldtype": "Tab Break",
-        "label": "Grace Time Rules"
-      },
-      {
-        "fieldname": "checkin_grace_minutes",
-        "fieldtype": "Int",
-        "label": "Check-In Grace Period (Minutes)",
-        "default": 10
-      },
-      {
-        "fieldname": "checkin_max_grace_minutes",
-        "fieldtype": "Int",
-        "label": "Check-In Max Allowed Grace (Minutes)",
-        "default": 30
-      },
-      {
-        "fieldname": "checkout_grace_minutes",
-        "fieldtype": "Int",
-        "label": "Check-Out Grace Period (Minutes)",
-        "default": 5
-      },
-      {
-        "fieldname": "checkout_max_grace_minutes",
-        "fieldtype": "Int",
-        "label": "Check-Out Max Allowed Grace (Minutes)",
-        "default": 20
-      },
-      {
-        "fieldname": "tab_break",
-        "fieldtype": "Tab Break",
-        "label": "Break Rules"
-      },
-      {
-        "fieldname": "break_duration_minutes",
-        "fieldtype": "Int",
-        "label": "Break Duration (Minutes)",
-        "default": 30
-      },
-      {
-        "fieldname": "regular_break_start",
-        "fieldtype": "Time",
-        "label": "Regular Break Start Time"
-      },
-      {
-        "fieldname": "regular_break_end",
-        "fieldtype": "Time",
-        "label": "Regular Break End Time"
-      },
-      {
-        "fieldname": "friday_break_start",
-        "fieldtype": "Time",
-        "label": "Friday Break Start Time"
-      },
-      {
-        "fieldname": "friday_break_end",
-        "fieldtype": "Time",
-        "label": "Friday Break End Time"
-      },
-      {
-        "fieldname": "ignore_break_in_overtime",
-        "fieldtype": "Check",
-        "label": "Ignore Break in Overtime Calculation",
-        "default": 0
-      },
-      {
-        "fieldname": "tab_overtime",
-        "fieldtype": "Tab Break",
-        "label": "Overtime & Deficiency Rules"
-      },
-      {
-        "fieldname": "gazetted_overtime_multiplier",
-        "fieldtype": "Float",
-        "label": "Gazetted Overtime Multiplier",
-        "default": 2.0,
-        "description": "Applied if employee works on gazetted holiday"
-      },
-      {
-        "fieldname": "overtime_multiplier",
-        "fieldtype": "Float",
-        "label": "Overtime Multiplier",
-        "default": 1.5,
-        "description": "Applied if employee works on regular overtime"
-      },
-      {
-        "fieldname": "force_hours_on_friday",
-        "fieldtype": "Check",
-        "label": "Force Full Hours on Friday",
-        "default": 1
-      },
-      {
-        "fieldname": "allow_negative_hours",
-        "fieldtype": "Check",
-        "label": "Allow Negative Hours (Deficiency)",
-        "default": 0
-      },
-      {
-        "fieldname": "tab_weekend",
-        "fieldtype": "Tab Break",
-        "label": "Weekend & Friday Rules"
-      },
-      {
-        "fieldname": "enable_friday_logic",
-        "fieldtype": "Check",
-        "label": "Enable Special Rules for Friday",
-        "default": 1
-      },
-      {
-        "fieldname": "consider_check_out_next_day",
-        "fieldtype": "Check",
-        "label": "Allow Overnight Shifts (Next Day Checkout)",
-        "default": 1
-      },
-      {
-        "fieldname": "tab_holiday",
-        "fieldtype": "Tab Break",
-        "label": "Holiday Rules"
-      },
-      {
-        "fieldname": "allow_absent_on_holiday",
-        "fieldtype": "Check",
-        "label": "Mark Absent on Holiday",
-        "default": 0
-      }
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "label": "Company",
+            "options": "Company",
+            "reqd": 1
+        },
+        {
+            "fieldname": "tab_basic",
+            "fieldtype": "Tab Break",
+            "label": "Basic Shift Info"
+        },
+        {
+            "fieldname": "factory_start_time",
+            "fieldtype": "Time",
+            "label": "Start Time",
+            "reqd": 1
+        },
+        {
+            "fieldname": "factory_end_time",
+            "fieldtype": "Time",
+            "label": "End Time",
+            "reqd": 1
+        },
+        {
+            "fieldname": "required_factory_hours",
+            "fieldtype": "Float",
+            "label": "Required Working Hours (Hrs)",
+            "default": 8.5,
+            "reqd": 1
+        },
+        {
+            "fieldname": "friday_start_time",
+            "fieldtype": "Time",
+            "label": "Friday Start Time",
+            "description": "Start time for Friday (if different from regular start time)"
+        },
+        {
+            "fieldname": "friday_end_time",
+            "fieldtype": "Time",
+            "label": "Friday End Time",
+            "description": "End time for Friday (if different from regular end time)"
+        },
+        {
+            "fieldname": "tab_grace",
+            "fieldtype": "Tab Break",
+            "label": "Grace Time Rules"
+        },
+        {
+            "fieldname": "checkin_grace_minutes",
+            "fieldtype": "Int",
+            "label": "Check-In Grace Period (Minutes)",
+            "default": 10
+        },
+        {
+            "fieldname": "checkin_max_grace_minutes",
+            "fieldtype": "Int",
+            "label": "Check-In Max Allowed Grace (Minutes)",
+            "default": 30
+        },
+        {
+            "fieldname": "checkout_grace_minutes",
+            "fieldtype": "Int",
+            "label": "Check-Out Grace Period (Minutes)",
+            "default": 5
+        },
+        {
+            "fieldname": "checkout_max_grace_minutes",
+            "fieldtype": "Int",
+            "label": "Check-Out Max Allowed Grace (Minutes)",
+            "default": 20
+        },
+        {
+            "fieldname": "tab_break",
+            "fieldtype": "Tab Break",
+            "label": "Break Rules"
+        },
+        {
+            "fieldname": "break_duration_minutes",
+            "fieldtype": "Int",
+            "label": "Break Duration (Minutes)",
+            "default": 30
+        },
+        {
+            "fieldname": "regular_break_start",
+            "fieldtype": "Time",
+            "label": "Regular Break Start Time"
+        },
+        {
+            "fieldname": "regular_break_end",
+            "fieldtype": "Time",
+            "label": "Regular Break End Time"
+        },
+        {
+            "fieldname": "friday_break_start",
+            "fieldtype": "Time",
+            "label": "Friday Break Start Time"
+        },
+        {
+            "fieldname": "friday_break_end",
+            "fieldtype": "Time",
+            "label": "Friday Break End Time"
+        },
+        {
+            "fieldname": "ignore_break_in_overtime",
+            "fieldtype": "Check",
+            "label": "Ignore Break in Overtime Calculation",
+            "default": 0
+        },
+        {
+            "fieldname": "tab_overtime",
+            "fieldtype": "Tab Break",
+            "label": "Overtime & Deficiency Rules"
+        },
+        {
+            "default": "0",
+            "fieldname": "enable_overtime_rounding",
+            "fieldtype": "Check",
+            "label": "Enable Overtime Rounding"
+        },
+        {
+            "default": "30",
+            "depends_on": "eval:doc.enable_overtime_rounding==1",
+            "fieldname": "overtime_rounding_interval_minutes",
+            "fieldtype": "Int",
+            "label": "Rounding Interval (Mins)",
+            "description": "Round to nearest N minutes"
+        },
+        {
+            "default": "15",
+            "depends_on": "eval:doc.enable_overtime_rounding==1",
+            "fieldname": "overtime_rounding_threshold_minutes",
+            "fieldtype": "Int",
+            "label": "Rounding Threshold (Mins)",
+            "description": ">= this many minutes rounds up"
+        },
+        {
+            "fieldname": "gazetted_overtime_multiplier",
+            "fieldtype": "Float",
+            "label": "Gazetted Overtime Multiplier",
+            "default": 2.0,
+            "description": "Applied if employee works on gazetted holiday"
+        },
+        {
+            "fieldname": "overtime_multiplier",
+            "fieldtype": "Float",
+            "label": "Overtime Multiplier",
+            "default": 1.5,
+            "description": "Applied if employee works on regular overtime"
+        },
+        {
+            "fieldname": "force_hours_on_friday",
+            "fieldtype": "Check",
+            "label": "Force Full Hours on Friday",
+            "default": 1
+        },
+        {
+            "fieldname": "allow_negative_hours",
+            "fieldtype": "Check",
+            "label": "Allow Negative Hours (Deficiency)",
+            "default": 0
+        },
+        {
+            "fieldname": "tab_weekend",
+            "fieldtype": "Tab Break",
+            "label": "Weekend & Friday Rules"
+        },
+        {
+            "fieldname": "enable_friday_logic",
+            "fieldtype": "Check",
+            "label": "Enable Special Rules for Friday",
+            "default": 1
+        },
+        {
+            "fieldname": "consider_check_out_next_day",
+            "fieldtype": "Check",
+            "label": "Allow Overnight Shifts (Next Day Checkout)",
+            "default": 1
+        },
+        {
+            "fieldname": "tab_holiday",
+            "fieldtype": "Tab Break",
+            "label": "Holiday Rules"
+        },
+        {
+            "fieldname": "allow_absent_on_holiday",
+            "fieldtype": "Check",
+            "label": "Mark Absent on Holiday",
+            "default": 0
+        }
     ],
     "permissions": [
-      {
-        "role": "HR Manager",
-        "read": 1,
-        "write": 1,
-        "create": 1,
-        "delete": 1
-      },
-      {
-        "role": "System Manager",
-        "read": 1,
-        "write": 1,
-        "create": 1,
-        "delete": 1
-      }
+        {
+            "role": "HR Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1
+        },
+        {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1
+        }
     ]
-  }
-  
+}

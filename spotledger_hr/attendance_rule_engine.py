@@ -314,6 +314,27 @@ class AttendanceRuleEngine:
         adjusted_check_out = f"{self.attendance_date} {check_out_time}"
         return adjusted_check_in, adjusted_check_out
     
+    def round_checkout_time(self, checkout_time: datetime) -> datetime:
+        """
+        Round the checkout time to the nearest interval based on the overtime rounding configuration.
+        """
+        if not getattr(self.rule, 'enable_overtime_rounding', 0):
+            return checkout_time
+        
+        interval = getattr(self.rule, 'overtime_rounding_interval_minutes', 30)
+        threshold = getattr(self.rule, 'overtime_rounding_threshold_minutes', 15)
+        
+        # Avoid division by zero
+        if not interval:
+            return checkout_time
+            
+        minutes_into_interval = checkout_time.minute % interval
+        floor_boundary = checkout_time - timedelta(minutes=minutes_into_interval, seconds=checkout_time.second)
+        
+        if minutes_into_interval >= threshold:
+            return floor_boundary + timedelta(minutes=interval)
+        return floor_boundary
+    
     def calculate_attendance_summary(self, check_in_time: str, check_out_time: str) -> Dict[str, Union[float, bool, str]]:
         """
         Calculate complete attendance summary with all metrics
@@ -324,6 +345,9 @@ class AttendanceRuleEngine:
         # Apply grace period adjustments
         adjusted_check_in_dt = self.get_time_after_grace_in(adjusted_check_in.split(' ')[1])
         adjusted_check_out_dt = self.get_time_after_grace_out(adjusted_check_out.split(' ')[1])
+        
+        # Apply overtime rounding to checkout time
+        adjusted_check_out_dt = self.round_checkout_time(adjusted_check_out_dt)
         
         # Convert back to time strings for calculations
         final_check_in = adjusted_check_in_dt.strftime('%H:%M:%S')
