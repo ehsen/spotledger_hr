@@ -269,14 +269,11 @@ fixtures = [
             ["module", "=", "Spotledger Hr"]  # Only include fields from this module
         ]
     },
-    {
-        "dt": "Salary Component",  # Salary components for attendance-based payroll
-        "filters": [
-            ["name", "in", ["Gross Salary", "Overtime", "Overtime GZT", "Advances", "Deficiency"]]
-        ]
-    },
-
-
+    # Salary Component account mappings (Gross Salary, Overtime, Overtime GZT,
+    # Advances, Deficiency) are intentionally NOT tracked as a fixture. Their
+    # `accounts` child table is company/Chart-of-Accounts-specific live config,
+    # not versioned app state — a stale fixture previously wiped it on
+    # `bench migrate`. Edit these directly in the ERPNext UI/API per site.
 ]
 
 # Frappe Assistant Core (MCP) tool integration

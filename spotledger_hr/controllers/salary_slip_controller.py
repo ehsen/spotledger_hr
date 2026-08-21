@@ -44,6 +44,17 @@ class CustomSalarySlip(SalarySlip):
             }
         )
 
+    def validate(self):
+        super().validate()
+        # Cosmetic only: the client's own wage-sheet convention treats
+        # Sundays as a paid weekly off (not deducted), unlike ERPNext's
+        # native payment_days, which excludes all Sundays/holidays from
+        # the count. This has no effect on any earnings/deductions amount
+        # — every component on Breeze Wages has depends_on_payment_days=0
+        # — it only changes what's displayed/printed/reported.
+        self.payment_days = self._paid_days()
+        self.absent_days = self._days_in_month() - self.payment_days
+
     # -- calendar / attendance rule -----------------------------------
 
     def _days_in_month(self):
