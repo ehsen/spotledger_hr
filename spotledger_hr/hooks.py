@@ -141,8 +141,7 @@ jinja = {
 
 override_doctype_class = {
 	"Attendance": "spotledger_hr.controllers.attendance_controller.AttendanceController",
-	# Attendance-based payroll decision pending - see salary_slip_controller.CustomSalarySlip
-	#"Salary Slip": "spotledger_hr.controllers.salary_slip_controller.CustomSalarySlip",
+	"Salary Slip": "spotledger_hr.controllers.salary_slip_controller.CustomSalarySlip",
 }
 
 # Document Events
@@ -273,7 +272,7 @@ fixtures = [
     {
         "dt": "Salary Component",  # Salary components for attendance-based payroll
         "filters": [
-            ["name", "in", ["Gross Salary", "Overtime", "Overtime GZT", "Advances"]]
+            ["name", "in", ["Gross Salary", "Overtime", "Overtime GZT", "Advances", "Deficiency"]]
         ]
     },
 
