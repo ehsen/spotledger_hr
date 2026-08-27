@@ -64,7 +64,10 @@ class AttendanceRuleEngine:
         Calculate adjusted check-in time after applying grace period logic
         Based on legacy get_time_after_grace function
         """
-        dt_check_in = get_datetime(f"{self.attendance_date} {check_in_time}")
+        if " " not in check_in_time:
+            dt_check_in = get_datetime(f"{self.attendance_date} {check_in_time}")
+        else:
+            dt_check_in = get_datetime(check_in_time)
         
         # Use Friday start time if it's Friday and Friday logic is enabled
         if self.is_friday and self.rule.enable_friday_logic and self.rule.friday_start_time:
@@ -97,7 +100,10 @@ class AttendanceRuleEngine:
         Calculate adjusted check-out time after applying grace period logic
         Based on legacy get_time_after_grace_out function with Friday prayer break handling
         """
-        dt_check_out = get_datetime(f"{self.attendance_date} {check_out_time}")
+        if " " not in check_out_time:
+            dt_check_out = get_datetime(f"{self.attendance_date} {check_out_time}")
+        else:
+            dt_check_out = get_datetime(check_out_time)
         
         # Use Friday end time if it's Friday and Friday logic is enabled
         if self.is_friday and self.rule.enable_friday_logic and self.rule.friday_end_time:
@@ -186,8 +192,16 @@ class AttendanceRuleEngine:
         Calculate break duration based on check-in/out times
         Based on legacy get_break_duration function
         """
-        dt_check_in = get_datetime(f"{self.attendance_date} {check_in_time}")
-        dt_check_out = get_datetime(f"{self.attendance_date} {check_out_time}")
+        if " " not in check_in_time:
+            dt_check_in = get_datetime(f"{self.attendance_date} {check_in_time}")
+        else:
+            dt_check_in = get_datetime(check_in_time)
+
+        if " " not in check_out_time:
+            dt_check_out = get_datetime(f"{self.attendance_date} {check_out_time}")
+        else:
+            dt_check_out = get_datetime(check_out_time)
+
         break_times = self.get_break_times()
         
         # If checkout before break start OR checkin after break start, no break deduction
@@ -207,8 +221,16 @@ class AttendanceRuleEngine:
         Calculate total hours worked between check-in and check-out
         Based on legacy calculate_total_hours function
         """
-        dt_check_in = get_datetime(f"{self.attendance_date} {check_in_time}")
-        dt_check_out = get_datetime(f"{self.attendance_date} {check_out_time}")
+        if " " not in check_in_time:
+            dt_check_in = get_datetime(f"{self.attendance_date} {check_in_time}")
+        else:
+            dt_check_in = get_datetime(check_in_time)
+
+        if " " not in check_out_time:
+            dt_check_out = get_datetime(f"{self.attendance_date} {check_out_time}")
+        else:
+            dt_check_out = get_datetime(check_out_time)
+        
         
         total_seconds = time_diff_in_seconds(dt_check_out, dt_check_in)
         return total_seconds / 3600  # Convert to hours
@@ -343,15 +365,15 @@ class AttendanceRuleEngine:
         adjusted_check_in, adjusted_check_out = self.handle_overnight_shift(check_in_time, check_out_time)
 
         # Apply grace period adjustments
-        adjusted_check_in_dt = self.get_time_after_grace_in(adjusted_check_in.split(' ')[1])
-        adjusted_check_out_dt = self.get_time_after_grace_out(adjusted_check_out.split(' ')[1])
+        adjusted_check_in_dt = self.get_time_after_grace_in(adjusted_check_in)
+        adjusted_check_out_dt = self.get_time_after_grace_out(adjusted_check_out)
         
         # Apply overtime rounding to checkout time
         adjusted_check_out_dt = self.round_checkout_time(adjusted_check_out_dt)
         
-        # Convert back to time strings for calculations
-        final_check_in = adjusted_check_in_dt.strftime('%H:%M:%S')
-        final_check_out = adjusted_check_out_dt.strftime('%H:%M:%S')
+        # Keep as full datetime strings for calculations to preserve date rollovers
+        final_check_in = adjusted_check_in_dt.strftime('%Y-%m-%d %H:%M:%S')
+        final_check_out = adjusted_check_out_dt.strftime('%Y-%m-%d %H:%M:%S')
         
         # Calculate all metrics
         total_hours = self.calculate_total_hours(final_check_in, final_check_out)
