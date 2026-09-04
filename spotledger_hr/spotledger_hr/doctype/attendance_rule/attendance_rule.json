@@ -27,6 +27,14 @@
             "label": "Basic Shift Info"
         },
         {
+            "fieldname": "hours_calculation_mode",
+            "fieldtype": "Select",
+            "label": "Hours Calculation Mode",
+            "options": "Factory Timing\nHours Completed",
+            "default": "Factory Timing",
+            "description": "Factory Timing: check-in is clamped to Start Time and check-out to End Time - arriving early or leaving outside that window doesn't count toward hours. Hours Completed: actual check-in/check-out times count in full; regular and overtime hours are based on total time worked against Required Working Hours, regardless of Start/End Time."
+        },
+        {
             "fieldname": "factory_start_time",
             "fieldtype": "Time",
             "label": "Start Time",
@@ -94,6 +102,14 @@
             "fieldtype": "Int",
             "label": "Check-Out Max Allowed Grace (Minutes)",
             "default": 20
+        },
+        {
+            "fieldname": "hours_deficiency_grace_minutes",
+            "fieldtype": "Int",
+            "label": "Hours Deficiency Grace (Minutes)",
+            "default": 10,
+            "depends_on": "eval:doc.hours_calculation_mode==\"Hours Completed\"",
+            "description": "Only used in Hours Completed mode. A shortfall below Required Working Hours smaller than this many minutes is not counted as deficiency."
         },
         {
             "fieldname": "tab_break",

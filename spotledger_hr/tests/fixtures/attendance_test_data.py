@@ -37,6 +37,37 @@ STANDARD_ATTENDANCE_RULE = {
     "ignore_break_in_overtime": False
 }
 
+# Attendance rule with Hours Completed mode - early/irregular check-ins
+# should count in full instead of being clamped to factory_start_time
+HOURS_COMPLETED_ATTENDANCE_RULE = {
+    "doctype": "Attendance Rule",
+    "name": "Test Company Hours Completed",
+    "company": "Test Company",
+    "hours_calculation_mode": "Hours Completed",
+    "factory_start_time": "08:00:00",
+    "factory_end_time": "17:00:00",
+    "required_factory_hours": 8.5,
+    "friday_start_time": "07:30:00",
+    "friday_end_time": "13:00:00",
+    "checkin_grace_minutes": 15,
+    "checkin_max_grace_minutes": 15,
+    "checkout_grace_minutes": 15,
+    "checkout_max_grace_minutes": 15,
+    "hours_deficiency_grace_minutes": 10,
+    "break_duration_minutes": 30,
+    "regular_break_start": "12:30:00",
+    "regular_break_end": "13:30:00",
+    "friday_break_start": "13:30:00",
+    "friday_break_end": "14:30:00",
+    "gazetted_overtime_multiplier": 2.0,
+    "force_hours_on_friday": True,
+    "allow_negative_hours": False,
+    "enable_friday_logic": True,
+    "consider_check_out_next_day": True,
+    "allow_absent_on_holiday": False,
+    "ignore_break_in_overtime": False
+}
+
 # Test dates
 TEST_DATES = {
     "regular_monday": "2024-01-15",  # Monday
@@ -385,6 +416,49 @@ EDGE_CASE_SCENARIOS = [
             "deficiency_hours": 4.5,  # 8.5 - 4 = 4.5
         },
         "description": "Late checkin and early checkout scenario"
+    }
+]
+
+# Hours Completed mode test scenarios - run against HOURS_COMPLETED_ATTENDANCE_RULE
+HOURS_COMPLETED_SCENARIOS = [
+    {
+        "name": "early_checkin_counts_as_overtime",
+        "check_in": "05:30:00",  # 2.5 hours before factory_start_time (08:00)
+        "check_out": "17:00:00",
+        "date": "regular_monday",
+        "expected": {
+            "total_hours": 11.5,
+            "regular_hours": 8.5,  # capped at required_factory_hours
+            "overtime_hours": 2.5,  # 11.0 net - 8.5 required, incl. the early hours
+            "deficiency_hours": 0,
+        },
+        "description": "Early check-in should count in full toward overtime, not be discarded"
+    },
+    {
+        "name": "shortfall_within_deficiency_grace",
+        "check_in": "08:00:00",
+        "check_out": "16:55:00",  # 5 min short of required hours after break
+        "date": "regular_monday",
+        "expected": {
+            "total_hours": 8.9167,
+            "regular_hours": 8.4167,
+            "overtime_hours": 0,
+            "deficiency_hours": 0,  # within hours_deficiency_grace_minutes (10)
+        },
+        "description": "Shortfall within the deficiency grace threshold should not count as deficiency"
+    },
+    {
+        "name": "shortfall_beyond_deficiency_grace",
+        "check_in": "08:00:00",
+        "check_out": "16:40:00",  # 20 min short of required hours after break
+        "date": "regular_monday",
+        "expected": {
+            "total_hours": 8.6667,
+            "regular_hours": 8.1667,
+            "overtime_hours": 0,
+            "deficiency_hours": 0.3333,  # beyond the 10-minute grace
+        },
+        "description": "Shortfall beyond the deficiency grace threshold should count as deficiency"
     }
 ]
 

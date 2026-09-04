@@ -22,6 +22,7 @@ class AttendanceRuleEngine:
         self.rule = self._get_attendance_rule()
         self.is_friday = self._is_friday()
         self.is_gazetted = self._is_gazetted_holiday()
+        self.is_hours_completed_mode = getattr(self.rule, "hours_calculation_mode", "Factory Timing") == "Hours Completed"
         
     def _get_attendance_rule(self):
         """Get attendance rule for employee"""
@@ -318,8 +319,18 @@ class AttendanceRuleEngine:
         # Note: required_factory_hours already represents NET working hours (no need to subtract break again)
         if net_hours_worked < required_working_hours:
             deficiency = required_working_hours - net_hours_worked
+
+            # Hours Completed mode: a shortfall within the dedicated grace
+            # threshold isn't clock-boundary grace (checkin/checkout grace
+            # fields don't apply - there's no clock window to be graced
+            # against), so it needs its own field.
+            if self.is_hours_completed_mode:
+                grace_hours = (getattr(self.rule, "hours_deficiency_grace_minutes", 0) or 0) / 60
+                if deficiency <= grace_hours:
+                    return 0
+
             return 0 if self.rule.allow_negative_hours else deficiency
-        
+
         return 0
     
     def handle_overnight_shift(self, check_in_time: str, check_out_time: str) -> Tuple[str, str]:
@@ -370,10 +381,19 @@ class AttendanceRuleEngine:
         # Handle overnight shifts
         adjusted_check_in, adjusted_check_out = self.handle_overnight_shift(check_in_time, check_out_time)
 
-        # Apply grace period adjustments
-        adjusted_check_in_dt = self.get_time_after_grace_in(adjusted_check_in)
-        adjusted_check_out_dt = self.get_time_after_grace_out(adjusted_check_out)
-        
+        if self.is_hours_completed_mode:
+            # Hours Completed mode: the factory clock window isn't the
+            # employee's actual obligation, so don't clamp check-in/check-out
+            # to factory_start_time/factory_end_time - use the actual
+            # (overnight-adjusted) times as-is. Hours are counted from actual
+            # time worked against required_factory_hours instead.
+            adjusted_check_in_dt = get_datetime(adjusted_check_in)
+            adjusted_check_out_dt = get_datetime(adjusted_check_out)
+        else:
+            # Apply grace period adjustments
+            adjusted_check_in_dt = self.get_time_after_grace_in(adjusted_check_in)
+            adjusted_check_out_dt = self.get_time_after_grace_out(adjusted_check_out)
+
         # Apply overtime rounding to checkout time
         adjusted_check_out_dt = self.round_checkout_time(adjusted_check_out_dt)
         

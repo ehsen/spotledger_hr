@@ -12,6 +12,7 @@ from frappe.tests.utils import FrappeTestCase
 from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
 from spotledger_hr.tests.fixtures.attendance_test_data import (
     STANDARD_ATTENDANCE_RULE,
+    HOURS_COMPLETED_ATTENDANCE_RULE,
     TEST_DATES,
     GRACE_PERIOD_SCENARIOS,
     BREAK_CALCULATION_SCENARIOS,
@@ -21,6 +22,7 @@ from spotledger_hr.tests.fixtures.attendance_test_data import (
     OVERNIGHT_SHIFT_SCENARIOS,
     COMPLETE_ATTENDANCE_SCENARIOS,
     EDGE_CASE_SCENARIOS,
+    HOURS_COMPLETED_SCENARIOS,
     TEST_EMPLOYEES,
     TEST_HOLIDAY_LIST
 )
@@ -708,6 +710,115 @@ class TestEdgeCases(FrappeTestCase):
                 "employee_name": "Test Employee No Rule",
                 "company": "Test Company"
             }).insert()
-        
+
         with self.assertRaises(Exception):
             AttendanceRuleEngine("TEST-EMP-NO-RULE", self.attendance_date)
+
+
+class TestHoursCompletedMode(FrappeTestCase):
+    """Test cases for the 'Hours Completed' calculation mode"""
+
+    def get_employee_by_number(self, employee_number):
+        """Get employee name by employee number"""
+        return frappe.db.get_value("Employee", {"employee_number": employee_number}, "name")
+
+    def setUp(self):
+        """Set up test data"""
+        self.employee_number = "TEST-EMP-HOURS-COMPLETED"
+        self.create_test_data()
+        self.employee = self.get_employee_by_number(self.employee_number)
+
+    def create_test_data(self):
+        """Create test data"""
+        if not frappe.db.exists("Company", "Test Company"):
+            frappe.get_doc({
+                "doctype": "Company",
+                "company_name": "Test Company",
+                "abbr": "TC",
+                "default_currency": "USD"
+            }).insert()
+
+        if not frappe.db.exists("Attendance Rule", "Test Company Hours Completed"):
+            frappe.get_doc(HOURS_COMPLETED_ATTENDANCE_RULE).insert()
+
+        if not frappe.db.exists("Employee", {"employee_number": self.employee_number}):
+            frappe.get_doc({
+                "doctype": "Employee",
+                "employee_name": "Test Employee Hours Completed",
+                "employee_number": self.employee_number,
+                "first_name": "Test",
+                "last_name": "Employee Hours Completed",
+                "company": "Test Company",
+                "custom_attendance_rule": "Test Company Hours Completed",
+                "gender": "Male",
+                "date_of_birth": "1990-01-01",
+                "date_of_joining": "2020-01-01",
+                "status": "Active"
+            }).insert()
+
+    def tearDown(self):
+        """Clean up test data"""
+        frappe.db.rollback()
+
+    def test_hours_calculation_mode_flag(self):
+        """Engine should recognize the rule's hours_calculation_mode"""
+        engine = AttendanceRuleEngine(self.employee, TEST_DATES["regular_monday"])
+        self.assertTrue(engine.is_hours_completed_mode)
+
+    def test_hours_completed_scenarios(self):
+        """Test Hours Completed mode calculations against fixture scenarios"""
+        for scenario in HOURS_COMPLETED_SCENARIOS:
+            with self.subTest(scenario=scenario["name"]):
+                date = TEST_DATES[scenario["date"]]
+                engine = AttendanceRuleEngine(self.employee, date)
+
+                summary = engine.calculate_attendance_summary(
+                    scenario["check_in"],
+                    scenario["check_out"]
+                )
+
+                expected = scenario["expected"]
+
+                self.assertAlmostEqual(summary["total_hours"], expected["total_hours"], places=2, msg=scenario["description"])
+                self.assertAlmostEqual(summary["regular_hours"], expected["regular_hours"], places=2, msg=scenario["description"])
+                self.assertAlmostEqual(summary["overtime_hours"], expected["overtime_hours"], places=2, msg=scenario["description"])
+                self.assertAlmostEqual(summary["deficiency_hours"], expected["deficiency_hours"], places=2, msg=scenario["description"])
+
+    def test_early_checkin_not_discarded_vs_factory_timing(self):
+        """
+        Core regression test for the reported gap: an early check-in must not
+        be silently discarded in Hours Completed mode the way Factory Timing
+        mode discards it by clamping to factory_start_time.
+        """
+        if not frappe.db.exists("Attendance Rule", "Test Company"):
+            frappe.get_doc(STANDARD_ATTENDANCE_RULE).insert()
+        if not frappe.db.exists("Employee", {"employee_number": "TEST-EMP-001"}):
+            frappe.get_doc({
+                "doctype": "Employee",
+                "employee_name": "Test Employee 1",
+                "employee_number": "TEST-EMP-001",
+                "first_name": "Test",
+                "last_name": "Employee 1",
+                "company": "Test Company",
+                "custom_attendance_rule": "Test Company",
+                "gender": "Male",
+                "date_of_birth": "1990-01-01",
+                "date_of_joining": "2020-01-01",
+                "status": "Active"
+            }).insert()
+
+        factory_timing_employee = self.get_employee_by_number("TEST-EMP-001")
+        date = TEST_DATES["regular_monday"]
+        check_in, check_out = "05:30:00", "17:00:00"
+
+        factory_timing_engine = AttendanceRuleEngine(factory_timing_employee, date)
+        factory_summary = factory_timing_engine.calculate_attendance_summary(check_in, check_out)
+
+        hours_completed_engine = AttendanceRuleEngine(self.employee, date)
+        hours_completed_summary = hours_completed_engine.calculate_attendance_summary(check_in, check_out)
+
+        # Factory Timing mode discards the early arrival entirely.
+        self.assertAlmostEqual(factory_summary["overtime_hours"], 0, places=2)
+        # Hours Completed mode recovers those hours as overtime instead of discarding them.
+        self.assertAlmostEqual(hours_completed_summary["overtime_hours"], 2.5, places=2)
+        self.assertGreater(hours_completed_summary["overtime_hours"], factory_summary["overtime_hours"])
