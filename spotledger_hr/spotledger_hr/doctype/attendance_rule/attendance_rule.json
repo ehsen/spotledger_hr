@@ -212,6 +212,13 @@
             "fieldtype": "Check",
             "label": "Mark Absent on Holiday",
             "default": 0
+        },
+        {
+            "fieldname": "treat_weekly_off_as_gazetted",
+            "fieldtype": "Check",
+            "label": "Treat Weekly Off as Gazetted Holiday",
+            "description": "When checked, hours worked on a weekly-off day (e.g. Sunday, per the Holiday List's weekly_off entries) are treated as Gazetted Overtime (paid at Gazetted Overtime Multiplier) instead of ordinary overtime. Off by default so existing employees' pay isn't silently changed until reviewed against this policy.",
+            "default": 0
         }
     ],
     "permissions": [

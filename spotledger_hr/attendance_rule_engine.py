@@ -37,17 +37,23 @@ class AttendanceRuleEngine:
     def _is_gazetted_holiday(self) -> bool:
         """Check if attendance date is a gazetted holiday
 
-        only_non_weekly=True excludes recurring weekly-off rows (e.g. Friday)
-        from counting as a gazetted holiday - Friday already has its own
-        dedicated handling via enable_friday_logic, and without this flag a
-        Holiday List that auto-populates weekly offs would misclassify every
-        Friday as gazetted, doubling overtime and zeroing deficiency on those days.
+        Named (non-weekly-off) holidays always count as gazetted. Weekly-off
+        days (e.g. Sunday) only count as gazetted if the rule opts in via
+        treat_weekly_off_as_gazetted - without that flag, a Holiday List that
+        auto-populates weekly offs would misclassify every Friday/Sunday as
+        gazetted, doubling overtime and zeroing deficiency on those days.
+        Friday already has its own dedicated handling via enable_friday_logic
+        regardless of this setting.
         """
         try:
             holiday_list = get_holiday_list_for_employee(self.employee, raise_exception=False)
             if not holiday_list:
                 return False
-            return is_holiday(self.employee, self.attendance_date, raise_exception=False, only_non_weekly=True)
+            if is_holiday(self.employee, self.attendance_date, raise_exception=False, only_non_weekly=True):
+                return True
+            if getattr(self.rule, "treat_weekly_off_as_gazetted", 0):
+                return is_holiday(self.employee, self.attendance_date, raise_exception=False, only_non_weekly=False)
+            return False
         except Exception:
             return False
     
