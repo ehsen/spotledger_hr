@@ -42,6 +42,15 @@
             "fieldname": "required_factory_hours",
             "fieldtype": "Float",
             "label": "Required Working Hours (Hrs)",
+            "description": "Daily regular/overtime threshold used by the Attendance Rule Engine. Hours worked beyond this count as overtime. Does NOT affect the hourly rate used in payroll — see Wage Rate Hours.",
+            "default": 8.5,
+            "reqd": 1
+        },
+        {
+            "fieldname": "wage_rate_hours",
+            "fieldtype": "Float",
+            "label": "Wage Rate Hours (Hrs)",
+            "description": "Divisor used only for the payroll hourly rate (base ÷ (days in month × this value)). Keep pegged to the company-wide standard (e.g. 8.5) even if Required Working Hours differs for this rule, so the per-hour rate stays consistent across employees.",
             "default": 8.5,
             "reqd": 1
         },

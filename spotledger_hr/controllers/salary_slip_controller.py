@@ -89,13 +89,17 @@ class CustomSalarySlip(SalarySlip):
         return frappe.get_cached_doc("Attendance Rule", rule_name)
 
     def _required_hours(self):
-        """Net productive hours per day = shift length minus break.
-        e.g. RegularProfile: 8.5 required_factory_hours - 0.5 break = 8.0,
-        which is the divisor the client's own wage sheets use."""
+        """Net hours per day used as the hourly-rate divisor = wage_rate_hours
+        minus break. This is deliberately independent of required_factory_hours,
+        which drives the daily regular/overtime split in the Attendance Rule
+        Engine and may differ per rule (e.g. a driver's 9-hour shift). The rate
+        divisor stays pegged to the company-wide standard (e.g. RegularProfile:
+        8.5 wage_rate_hours - 0.5 break = 8.0, which is what the client's own
+        wage sheets use for every employee, regardless of shift length)."""
         rule = self._get_attendance_rule()
         if not rule:
             return 8.0
-        net = flt(rule.required_factory_hours) - flt(rule.break_duration_minutes or 0) / 60
+        net = flt(rule.wage_rate_hours) - flt(rule.break_duration_minutes or 0) / 60
         return net or 8.0
 
     def _overtime_multiplier(self):
