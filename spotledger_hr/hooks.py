@@ -142,6 +142,7 @@ jinja = {
 override_doctype_class = {
 	"Attendance": "spotledger_hr.controllers.attendance_controller.AttendanceController",
 	"Salary Slip": "spotledger_hr.controllers.salary_slip_controller.CustomSalarySlip",
+	"Salary Structure Assignment": "spotledger_hr.controllers.salary_structure_assignment_controller.CustomSalaryStructureAssignment",
 }
 
 # Document Events

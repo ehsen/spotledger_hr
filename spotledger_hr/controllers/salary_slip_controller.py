@@ -25,6 +25,14 @@ import frappe
 from frappe.utils import flt, getdate
 from hrms.payroll.doctype.salary_slip.salary_slip import SalarySlip
 
+from spotledger_hr.utilities.salary_formula_helpers import (
+    compute_hourly_rate,
+    get_attendance_rule,
+    gzt_overtime_multiplier,
+    overtime_multiplier,
+    required_wage_hours,
+)
+
 
 class CustomSalarySlip(SalarySlip):
     def __init__(self, *args, **kwargs):
@@ -82,37 +90,20 @@ class CustomSalarySlip(SalarySlip):
         return total_days - flt(unpaid_absences)
 
     def _get_attendance_rule(self):
-        employee = frappe.get_cached_doc("Employee", self.employee)
-        rule_name = employee.get("custom_attendance_rule")
-        if not rule_name:
-            return None
-        return frappe.get_cached_doc("Attendance Rule", rule_name)
+        return get_attendance_rule(self.employee)
 
     def _required_hours(self):
-        """Net hours per day used as the hourly-rate divisor = wage_rate_hours
-        minus break. This is deliberately independent of required_factory_hours,
-        which drives the daily regular/overtime split in the Attendance Rule
-        Engine and may differ per rule (e.g. a driver's 9-hour shift). The rate
-        divisor stays pegged to the company-wide standard (e.g. RegularProfile:
-        8.5 wage_rate_hours - 0.5 break = 8.0, which is what the client's own
-        wage sheets use for every employee, regardless of shift length)."""
-        rule = self._get_attendance_rule()
-        if not rule:
-            return 8.0
-        net = flt(rule.wage_rate_hours) - flt(rule.break_duration_minutes or 0) / 60
-        return net or 8.0
+        """Net hours per day used as the hourly-rate divisor. See
+        spotledger_hr.utilities.salary_formula_helpers.required_wage_hours
+        for why this is independent of required_factory_hours (the daily
+        OT threshold)."""
+        return required_wage_hours(self.employee)
 
     def _overtime_multiplier(self):
-        rule = self._get_attendance_rule()
-        if not rule:
-            return 1.5
-        return flt(rule.overtime_multiplier) or 1.5
+        return overtime_multiplier(self.employee)
 
     def _gzt_overtime_multiplier(self):
-        rule = self._get_attendance_rule()
-        if not rule:
-            return 2.0
-        return flt(rule.gazetted_overtime_multiplier) or 2.0
+        return gzt_overtime_multiplier(self.employee)
 
     # -- rate --------------------------------------------------------
 
@@ -127,9 +118,7 @@ class CustomSalarySlip(SalarySlip):
                     order_by="from_date desc",
                 )
             )
-        days = self._days_in_month()
-        hours = self._required_hours()
-        return base / (days * hours) if days and hours else 0
+        return compute_hourly_rate(self.employee, base, self.start_date)
 
     # -- attendance sums -----------------------------------------------
 
