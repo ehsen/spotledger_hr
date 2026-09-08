@@ -39,7 +39,25 @@ factory_end_time: "16:00:00"
 required_factory_hours: 8.5
 ```
 
+### 1a. Hours Calculation Mode
+
+`Attendance Rule.hours_calculation_mode` (Select: `Factory Timing` / `Hours Completed`,
+default `Factory Timing`) controls which of two models the engine uses:
+
+- **Factory Timing** (default, legacy behavior) - check-in/check-out are clamped to
+  `factory_start_time`/`factory_end_time` via the grace-period rules below. Arriving
+  before `factory_start_time` doesn't count toward hours; that time is discarded.
+- **Hours Completed** - for staff whose real obligation is "complete N hours," not
+  "be here from X to Y" (e.g. drivers). Grace-period clamping is skipped entirely;
+  the actual check-in/check-out (still subject to the overnight-shift-wrap logic)
+  count in full. `regular_hours` = `min(total_hours, required_factory_hours)`,
+  `overtime_hours` = `max(0, total_hours - required_factory_hours)`. Deficiency uses
+  a dedicated `hours_deficiency_grace_minutes` threshold instead of the clock-boundary
+  grace fields, since there's no clock window to be graced against in this mode.
+
 ### 2. Grace Period Rules
+
+> Applies only in `Factory Timing` mode - see [1a](#1a-hours-calculation-mode) above.
 
 #### Check-in Grace Logic
 - **Within Grace Period** (≤ 10 minutes): Adjusted to factory start time
