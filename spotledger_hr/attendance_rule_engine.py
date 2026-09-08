@@ -292,6 +292,16 @@ class AttendanceRuleEngine:
         # Note: required_factory_hours already represents NET working hours (no need to subtract break again)
         if net_hours_worked > required_working_hours:
             overtime = net_hours_worked - required_working_hours
+
+            # Hours Completed mode: the 30-min/15-min rounding convention
+            # applies to the overtime excess itself, not to the checkout
+            # instant (there's no factory_end_time boundary for it to align
+            # to, so rounding the checkout clock time would let the grid
+            # accidentally decide the regular/deficiency split too - see
+            # BFI/DriverProfile bug report).
+            if self.is_hours_completed_mode:
+                overtime = self.round_hours_to_grid(overtime)
+
             return max(0, overtime)
 
         return 0
@@ -323,10 +333,16 @@ class AttendanceRuleEngine:
             # Hours Completed mode: a shortfall within the dedicated grace
             # threshold isn't clock-boundary grace (checkin/checkout grace
             # fields don't apply - there's no clock window to be graced
-            # against), so it needs its own field.
+            # against), so it needs its own field. The grace is subtracted
+            # from the exact shortfall, not used as a cliff - this is the
+            # only source of grace-like behavior left once the overtime
+            # rounding no longer leaks into this side of the calculation
+            # (see BFI/DriverProfile bug report), so it needs to behave
+            # predictably at hours_deficiency_grace_minutes = 0.
             if self.is_hours_completed_mode:
                 grace_hours = (getattr(self.rule, "hours_deficiency_grace_minutes", 0) or 0) / 60
-                if deficiency <= grace_hours:
+                deficiency = max(0, deficiency - grace_hours)
+                if deficiency == 0:
                     return 0
 
             return 0 if self.rule.allow_negative_hours else deficiency
@@ -373,7 +389,39 @@ class AttendanceRuleEngine:
         if minutes_into_interval >= threshold:
             return floor_boundary + timedelta(minutes=interval)
         return floor_boundary
-    
+
+    def round_hours_to_grid(self, hours: float) -> float:
+        """
+        Round a duration (in hours, not an absolute clock time) to the
+        nearest interval based on the overtime rounding configuration.
+
+        Used for Hours Completed mode's overtime excess, which has no
+        factory_end_time boundary to align a clock-time rounding to -
+        rounding the checkout instant instead (as round_checkout_time does)
+        would let the grid decide whether a day is in deficiency at all,
+        not just how many overtime minutes get reported.
+        """
+        if hours <= 0:
+            return hours
+        if not getattr(self.rule, 'enable_overtime_rounding', 0):
+            return hours
+
+        interval = getattr(self.rule, 'overtime_rounding_interval_minutes', 30)
+        threshold = getattr(self.rule, 'overtime_rounding_threshold_minutes', 15)
+
+        # Avoid division by zero
+        if not interval:
+            return hours
+
+        total_minutes = hours * 60
+        minutes_into_interval = total_minutes % interval
+        floor_minutes = total_minutes - minutes_into_interval
+
+        if minutes_into_interval >= threshold:
+            floor_minutes += interval
+
+        return floor_minutes / 60
+
     def calculate_attendance_summary(self, check_in_time: str, check_out_time: str) -> Dict[str, Union[float, bool, str]]:
         """
         Calculate complete attendance summary with all metrics
@@ -389,14 +437,21 @@ class AttendanceRuleEngine:
             # time worked against required_factory_hours instead.
             adjusted_check_in_dt = get_datetime(adjusted_check_in)
             adjusted_check_out_dt = get_datetime(adjusted_check_out)
+            # Deliberately no round_checkout_time() here: rounding the raw
+            # checkout instant to the nearest half-hour before total_hours/
+            # regular_hours/deficiency_hours are derived from it would let
+            # the 30-min grid - meant only to smooth the reported overtime
+            # once it's already established that overtime exists - decide
+            # by accident whether the day is in deficiency or overtime at
+            # all. The excess is rounded on its own further down, in
+            # calculate_overtime, via round_hours_to_grid.
         else:
             # Apply grace period adjustments
             adjusted_check_in_dt = self.get_time_after_grace_in(adjusted_check_in)
             adjusted_check_out_dt = self.get_time_after_grace_out(adjusted_check_out)
+            # Apply overtime rounding to checkout time
+            adjusted_check_out_dt = self.round_checkout_time(adjusted_check_out_dt)
 
-        # Apply overtime rounding to checkout time
-        adjusted_check_out_dt = self.round_checkout_time(adjusted_check_out_dt)
-        
         # Keep as full datetime strings for calculations to preserve date rollovers
         final_check_in = adjusted_check_in_dt.strftime('%Y-%m-%d %H:%M:%S')
         final_check_out = adjusted_check_out_dt.strftime('%Y-%m-%d %H:%M:%S')

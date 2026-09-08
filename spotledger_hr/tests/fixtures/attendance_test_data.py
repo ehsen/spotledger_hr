@@ -68,6 +68,45 @@ HOURS_COMPLETED_ATTENDANCE_RULE = {
     "ignore_break_in_overtime": False
 }
 
+# Hours Completed mode with overtime rounding enabled and zero deficiency
+# grace - mirrors the real BFI "DriverProfile" configuration ("no grace at
+# all - straight 9-hour commitment") that surfaced the checkout-rounding bug:
+# rounding the raw checkout to the nearest half-hour before deriving
+# deficiency/overtime let the 30-min grid decide whether a shortfall counted
+# as deficiency at all, in whichever direction the real checkout happened to
+# round.
+HOURS_COMPLETED_ROUNDING_ATTENDANCE_RULE = {
+    "doctype": "Attendance Rule",
+    "name": "Test Company Hours Completed Rounding",
+    "company": "Test Company",
+    "hours_calculation_mode": "Hours Completed",
+    "factory_start_time": "09:00:00",
+    "factory_end_time": "18:00:00",
+    "required_factory_hours": 9.0,
+    "friday_start_time": "09:00:00",
+    "friday_end_time": "18:00:00",
+    "checkin_grace_minutes": 15,
+    "checkin_max_grace_minutes": 30,
+    "checkout_grace_minutes": 15,
+    "checkout_max_grace_minutes": 30,
+    "hours_deficiency_grace_minutes": 0,
+    "break_duration_minutes": 0,
+    "regular_break_start": "13:00:00",
+    "regular_break_end": "13:00:00",
+    "friday_break_start": "13:00:00",
+    "friday_break_end": "13:00:00",
+    "ignore_break_in_overtime": True,
+    "enable_overtime_rounding": True,
+    "overtime_rounding_interval_minutes": 30,
+    "overtime_rounding_threshold_minutes": 15,
+    "gazetted_overtime_multiplier": 2.0,
+    "force_hours_on_friday": True,
+    "allow_negative_hours": False,
+    "enable_friday_logic": False,
+    "consider_check_out_next_day": True,
+    "allow_absent_on_holiday": False
+}
+
 # Test dates
 TEST_DATES = {
     "regular_monday": "2024-01-15",  # Monday
@@ -456,9 +495,92 @@ HOURS_COMPLETED_SCENARIOS = [
             "total_hours": 8.6667,
             "regular_hours": 8.1667,
             "overtime_hours": 0,
-            "deficiency_hours": 0.3333,  # beyond the 10-minute grace
+            # hours_deficiency_grace_minutes (10) is subtracted from the exact
+            # shortfall (20 min), not used as a cliff - 20 min short - 10 min
+            # grace = 10 min deficiency. A cliff (old behavior: report the
+            # full 20 min once shortfall exceeds grace at all) made grace
+            # inconsistent with the checkout-rounding bug fix, which needed
+            # grace to behave predictably at hours_deficiency_grace_minutes=0.
+            "deficiency_hours": 0.1667,
         },
-        "description": "Shortfall beyond the deficiency grace threshold should count as deficiency"
+        "description": "Shortfall beyond the deficiency grace threshold counts as deficiency net of the grace minutes"
+    }
+]
+
+# Hours Completed mode with overtime rounding enabled - run against
+# HOURS_COMPLETED_ROUNDING_ATTENDANCE_RULE (required_factory_hours=9.0,
+# hours_deficiency_grace_minutes=0, 30-min/15-min overtime rounding).
+# Regression coverage for the bug where adjusted_check_out was rounded to the
+# nearest half-hour before total_hours/regular_hours/deficiency_hours were
+# derived from it, letting the rounding grid - not the actual worked span -
+# decide whether a day counted as deficient or in overtime.
+HOURS_COMPLETED_ROUNDING_SCENARIOS = [
+    {
+        "name": "checkout_rounds_down_but_span_still_meets_requirement",
+        # Raw span: 09:01 -> 18:06 = 9h05m = 9.0833h, over the 9h commitment.
+        # round_checkout_time would have floored 18:06 to 18:00 (6 min < 15
+        # min threshold), making total_hours look like 8.98h and reporting
+        # 0.02h deficiency on a day the employee actually met the target.
+        "check_in": "09:01:00",
+        "check_out": "18:06:00",
+        "date": "regular_monday",
+        "expected": {
+            "total_hours": 9.0833,
+            "regular_hours": 9.0,
+            "overtime_hours": 0,  # 0.0833h (5 min) excess rounds down, below the 15-min threshold
+            "deficiency_hours": 0,
+        },
+        "description": "A raw span that meets the requirement must not show deficiency just because checkout rounds down"
+    },
+    {
+        "name": "checkout_rounds_up_but_span_is_genuinely_short",
+        # Raw span: 09:02 -> 17:55 = 8h53m = 8.8833h, genuinely 7 min short.
+        # round_checkout_time would have rounded 17:55 up to 18:00 (5 min <
+        # 15 min threshold), making total_hours look like 8.97h and
+        # under-reporting deficiency as 0.03h (2 min) instead of the real
+        # 7-minute shortfall.
+        "check_in": "09:02:00",
+        "check_out": "17:55:00",
+        "date": "regular_monday",
+        "expected": {
+            "total_hours": 8.8833,
+            "regular_hours": 8.8833,
+            "overtime_hours": 0,
+            "deficiency_hours": 0.1167,  # exact 7-minute shortfall, no grace (grace=0) and no rounding
+        },
+        "description": "A genuinely short span must be reported at its real deficiency, not shrunk by checkout rounding"
+    },
+    {
+        "name": "overtime_excess_rounds_down_below_threshold",
+        # 9h10m worked: 10 min excess, below the 15-min rounding threshold,
+        # so it should round down to 0 overtime - same grid, now applied to
+        # the excess duration instead of the checkout instant.
+        "check_in": "09:00:00",
+        "check_out": "18:10:00",
+        "date": "regular_monday",
+        "expected": {
+            "total_hours": 9.1667,
+            "regular_hours": 9.0,
+            "overtime_hours": 0,
+            "deficiency_hours": 0,
+        },
+        "description": "Overtime excess under the rounding threshold rounds down to zero"
+    },
+    {
+        "name": "overtime_excess_rounds_up_to_full_interval",
+        # 9h24m worked: 24 min excess, at/above the 15-min threshold, so it
+        # should round up to the next 30-min interval (0.5h), not be
+        # truncated the way rounding the checkout clock time would.
+        "check_in": "09:00:00",
+        "check_out": "18:24:00",
+        "date": "regular_monday",
+        "expected": {
+            "total_hours": 9.4,
+            "regular_hours": 9.0,
+            "overtime_hours": 0.5,
+            "deficiency_hours": 0,
+        },
+        "description": "Overtime excess at/above the rounding threshold rounds up to the next interval"
     }
 ]
 

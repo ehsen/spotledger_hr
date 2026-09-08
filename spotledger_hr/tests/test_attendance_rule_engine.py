@@ -13,6 +13,7 @@ from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
 from spotledger_hr.tests.fixtures.attendance_test_data import (
     STANDARD_ATTENDANCE_RULE,
     HOURS_COMPLETED_ATTENDANCE_RULE,
+    HOURS_COMPLETED_ROUNDING_ATTENDANCE_RULE,
     TEST_DATES,
     GRACE_PERIOD_SCENARIOS,
     BREAK_CALCULATION_SCENARIOS,
@@ -23,6 +24,7 @@ from spotledger_hr.tests.fixtures.attendance_test_data import (
     COMPLETE_ATTENDANCE_SCENARIOS,
     EDGE_CASE_SCENARIOS,
     HOURS_COMPLETED_SCENARIOS,
+    HOURS_COMPLETED_ROUNDING_SCENARIOS,
     TEST_EMPLOYEES,
     TEST_HOLIDAY_LIST
 )
@@ -822,3 +824,92 @@ class TestHoursCompletedMode(FrappeTestCase):
         # Hours Completed mode recovers those hours as overtime instead of discarding them.
         self.assertAlmostEqual(hours_completed_summary["overtime_hours"], 2.5, places=2)
         self.assertGreater(hours_completed_summary["overtime_hours"], factory_summary["overtime_hours"])
+
+
+class TestHoursCompletedRoundingBug(FrappeTestCase):
+    """
+    Regression tests for the BFI/DriverProfile bug: adjusted_check_out was
+    rounded to the nearest half-hour (via overtime_rounding_interval_minutes/
+    overtime_rounding_threshold_minutes) before total_hours, regular_hours,
+    and deficiency_hours were derived from it in Hours Completed mode. That
+    let the rounding grid - meant only to smooth how much overtime gets
+    reported once overtime already exists - accidentally decide whether a
+    day counted as deficient or in overtime at all, inconsistently depending
+    on which side of the half-hour the real checkout fell on.
+
+    Fix: the checkout instant is no longer rounded in Hours Completed mode.
+    total_hours/regular_hours/deficiency_hours are derived from the raw
+    span; only the overtime excess (once total_hours >= required_factory_hours)
+    is rounded to the interval/threshold grid.
+    """
+
+    def get_employee_by_number(self, employee_number):
+        """Get employee name by employee number"""
+        return frappe.db.get_value("Employee", {"employee_number": employee_number}, "name")
+
+    def setUp(self):
+        """Set up test data"""
+        self.employee_number = "TEST-EMP-HOURS-COMPLETED-ROUNDING"
+        self.create_test_data()
+        self.employee = self.get_employee_by_number(self.employee_number)
+
+    def create_test_data(self):
+        """Set up test data"""
+        if not frappe.db.exists("Company", "Test Company"):
+            frappe.get_doc({
+                "doctype": "Company",
+                "company_name": "Test Company",
+                "abbr": "TC",
+                "default_currency": "USD"
+            }).insert()
+
+        if not frappe.db.exists("Attendance Rule", "Test Company Hours Completed Rounding"):
+            frappe.get_doc(HOURS_COMPLETED_ROUNDING_ATTENDANCE_RULE).insert()
+
+        if not frappe.db.exists("Employee", {"employee_number": self.employee_number}):
+            frappe.get_doc({
+                "doctype": "Employee",
+                "employee_name": "Test Employee Hours Completed Rounding",
+                "employee_number": self.employee_number,
+                "first_name": "Test",
+                "last_name": "Employee Hours Completed Rounding",
+                "company": "Test Company",
+                "custom_attendance_rule": "Test Company Hours Completed Rounding",
+                "gender": "Male",
+                "date_of_birth": "1990-01-01",
+                "date_of_joining": "2020-01-01",
+                "status": "Active"
+            }).insert()
+
+    def tearDown(self):
+        """Clean up test data"""
+        frappe.db.rollback()
+
+    def test_rounding_scenarios(self):
+        """Checkout rounding must not decide the deficiency/overtime split"""
+        for scenario in HOURS_COMPLETED_ROUNDING_SCENARIOS:
+            with self.subTest(scenario=scenario["name"]):
+                date = TEST_DATES[scenario["date"]]
+                engine = AttendanceRuleEngine(self.employee, date)
+
+                summary = engine.calculate_attendance_summary(
+                    scenario["check_in"],
+                    scenario["check_out"]
+                )
+
+                expected = scenario["expected"]
+
+                self.assertAlmostEqual(summary["total_hours"], expected["total_hours"], places=2, msg=scenario["description"])
+                self.assertAlmostEqual(summary["regular_hours"], expected["regular_hours"], places=2, msg=scenario["description"])
+                self.assertAlmostEqual(summary["overtime_hours"], expected["overtime_hours"], places=2, msg=scenario["description"])
+                self.assertAlmostEqual(summary["deficiency_hours"], expected["deficiency_hours"], places=2, msg=scenario["description"])
+
+    def test_adjusted_check_out_is_not_rounded(self):
+        """
+        adjusted_check_out must reflect the actual checkout in Hours
+        Completed mode - rounding it is what caused the bug in the first
+        place, since everything downstream is derived from it.
+        """
+        engine = AttendanceRuleEngine(self.employee, TEST_DATES["regular_monday"])
+        summary = engine.calculate_attendance_summary("09:01:00", "18:06:00")
+        self.assertEqual(summary["adjusted_check_out"].strftime("%H:%M:%S"), "18:06:00")
