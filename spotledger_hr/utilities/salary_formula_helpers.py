@@ -54,14 +54,20 @@ def compute_hourly_rate(employee, base, start_date) -> float:
 
 
 def overtime_multiplier(employee) -> float:
+    """Per-employee multiplier from the assigned Attendance Rule. `0` is a
+    valid, intentional value (e.g. a role ineligible for paid overtime), so
+    it must not fall back to the 1.5 default — only the absence of a rule
+    should."""
     rule = get_attendance_rule(employee)
     if not rule:
         return 1.5
-    return flt(rule.overtime_multiplier) or 1.5
+    return flt(rule.overtime_multiplier)
 
 
 def gzt_overtime_multiplier(employee) -> float:
+    """See overtime_multiplier() — same rationale for not treating `0` as
+    falsy."""
     rule = get_attendance_rule(employee)
     if not rule:
         return 2.0
-    return flt(rule.gazetted_overtime_multiplier) or 2.0
+    return flt(rule.gazetted_overtime_multiplier)
