@@ -35,6 +35,23 @@ def get_attendance_rule(employee):
     return frappe.get_cached_doc("Attendance Rule", rule_name)
 
 
+def friday_absence_policy(employee, start_date, end_date):
+    """Read-only opt-in: distinct submitted Friday absences, never missing work."""
+    rule = get_attendance_rule(employee)
+    hours = flt(rule.get("friday_absence_deficiency_hours")) if rule else 0
+    effective = rule.get("friday_absence_policy_from_date") if rule else None
+    if hours <= 0 or not effective:
+        return 0, 0.0
+    count = frappe.db.sql(
+        """SELECT COUNT(DISTINCT attendance_date) FROM `tabAttendance`
+        WHERE employee=%(employee)s AND docstatus=1 AND status='Absent'
+          AND attendance_date BETWEEN %(start)s AND %(end)s
+          AND attendance_date >= %(effective)s AND DAYOFWEEK(attendance_date)=6""",
+        {"employee": employee, "start": start_date, "end": end_date, "effective": effective},
+    )[0][0]
+    return int(count), hours
+
+
 def required_wage_hours(employee) -> float:
     """Net hours/day used as the hourly-rate divisor = wage_rate_hours minus
     break. Deliberately independent of required_factory_hours, which drives

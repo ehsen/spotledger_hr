@@ -27,6 +27,7 @@ from hrms.payroll.doctype.salary_slip.salary_slip import SalarySlip
 
 from spotledger_hr.utilities.salary_formula_helpers import (
     compute_hourly_rate,
+    friday_absence_policy,
     get_attendance_rule,
     gzt_overtime_multiplier,
     overtime_multiplier,
@@ -78,7 +79,7 @@ class CustomSalarySlip(SalarySlip):
         total_days = self._days_in_month()
         unpaid_absences = frappe.db.sql(
             """
-            SELECT COUNT(*) FROM `tabAttendance`
+            SELECT COUNT(DISTINCT attendance_date) FROM `tabAttendance`
             WHERE employee=%(employee)s
               AND attendance_date BETWEEN %(start)s AND %(end)s
               AND status='Absent'
@@ -87,7 +88,8 @@ class CustomSalarySlip(SalarySlip):
             """,
             {"employee": self.employee, "start": self.start_date, "end": self.end_date},
         )[0][0]
-        return total_days - flt(unpaid_absences)
+        eligible, _ = friday_absence_policy(self.employee, self.start_date, self.end_date)
+        return total_days - flt(unpaid_absences) + eligible
 
     def _get_attendance_rule(self):
         return get_attendance_rule(self.employee)
@@ -151,6 +153,7 @@ class CustomSalarySlip(SalarySlip):
         )
 
     def _deficiency_hours(self):
+        eligible, hours = friday_absence_policy(self.employee, self.start_date, self.end_date)
         return flt(
             frappe.db.sql(
                 """
@@ -161,7 +164,7 @@ class CustomSalarySlip(SalarySlip):
                 """,
                 {"employee": self.employee, "start": self.start_date, "end": self.end_date},
             )[0][0]
-        )
+        ) + eligible * hours
 
     # -- advances --------------------------------------------------------
 

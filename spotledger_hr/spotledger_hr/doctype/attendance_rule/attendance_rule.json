@@ -213,6 +213,21 @@
             "default": 1
         },
         {
+            "fieldname": "friday_absence_deficiency_hours",
+            "fieldtype": "Float",
+            "label": "Friday Absence Payroll Deficiency Hours",
+            "default": 0,
+            "non_negative": 1,
+            "description": "Opt-in payroll policy only: positive hours keep submitted Friday Absent dates paid and charge these deficiency hours. Zero preserves full-day proration. Does not change Attendance or punches. Assign only to explicitly approved employees."
+        },
+        {
+            "fieldname": "friday_absence_policy_from_date",
+            "fieldtype": "Date",
+            "label": "Friday Absence Policy Effective From",
+            "mandatory_depends_on": "eval:doc.friday_absence_deficiency_hours>0",
+            "description": "Required when hours are positive; earlier absences retain full-day proration."
+        },
+        {
             "fieldname": "consider_check_out_next_day",
             "fieldtype": "Check",
             "label": "Allow Overnight Shifts (Next Day Checkout)",

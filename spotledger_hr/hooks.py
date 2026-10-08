@@ -154,6 +154,9 @@ override_doctype_class = {
 # both caused the attendance rule engine to run twice per save).
 
 doc_events = {
+    "Attendance Rule": {
+        "validate": "spotledger_hr.spotledger_hr.doctype.attendance_rule.attendance_rule.validate_friday_absence_policy",
+    },
 	"Journal Entry": {
 		"before_validate": "spotledger_hr.payroll_overrides.split_party_required_lines",
 	}
