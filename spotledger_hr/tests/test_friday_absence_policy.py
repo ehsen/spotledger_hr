@@ -93,7 +93,7 @@ class TestFridayAbsencePolicy(unittest.TestCase):
             frappe.get_doc(dict(doctype='Salary Component', salary_component=name, salary_component_abbr='FP'+str(index), type=kind, depends_on_payment_days=0)).insert()
             structure.append('earnings' if kind=='Earning' else 'deductions', dict(salary_component=name, amount_based_on_formula=1, formula=formula, depends_on_payment_days=0))
         structure.insert().submit()
-        if not frappe.db.exists('Fiscal Year', '_Friday 2026'):
+        if not frappe.db.exists('Fiscal Year', {'year_start_date': ['<=', '2026-07-01'], 'year_end_date': ['>=', '2026-07-31'], 'disabled': 0}):
             frappe.get_doc(dict(doctype='Fiscal Year', year='_Friday 2026', year_start_date='2026-01-01', year_end_date='2026-12-31')).insert()
         assignment = frappe.get_doc(dict(doctype='Salary Structure Assignment', employee=self.employee, company=self.company, salary_structure=structure.name, from_date='2026-07-01', base=23000, currency='PKR')).insert()
         assignment.submit()
