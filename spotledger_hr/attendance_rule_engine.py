@@ -214,8 +214,13 @@ class AttendanceRuleEngine:
         # If checkout before break start OR checkin after break start, no break deduction
         if (dt_check_out <= break_times['start']) or (dt_check_in >= break_times['start']):
             return 0
-        # If checkout after break end, full break deduction
-        elif dt_check_out > break_times['end']:
+        # Include a completed regular lunch at its end in Factory Timing only.
+        # Keep Friday and Hours Completed boundary policy unchanged.
+        elif dt_check_out > break_times['end'] or (
+            dt_check_out == break_times['end']
+            and not self.is_hours_completed_mode
+            and not (self.is_friday and self.rule.enable_friday_logic)
+        ):
             if self.is_friday and self.rule.enable_friday_logic:
                 # Friday break is dynamic based on start/end times, not break_duration_minutes
                 return int(time_diff_in_seconds(break_times['end'], break_times['start']))
