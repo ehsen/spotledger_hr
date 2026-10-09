@@ -99,6 +99,16 @@ class AttendanceController(Attendance):
             
             # Update attendance record with calculated values
             self.update_attendance_fields(summary)
+
+            # Friday's full day can be shorter than the legacy eight-hour threshold.
+            # Only add this promotion; leave all other status/metric behavior intact.
+            if (self.status == 'Absent' and engine.is_friday
+                    and engine.rule.enable_friday_logic
+                    and engine.get_required_factory_hours() > 0
+                    and summary.get('regular_hours', 0) >= engine.get_required_factory_hours()
+                    and summary.get('deficiency_hours') == 0
+                    and self.has_current_positive_friday_pair()):
+                self.status = 'Present'
             
         except frappe.ValidationError:
             # Re-raise validation errors (like missing holiday list)
@@ -111,6 +121,26 @@ class AttendanceController(Attendance):
             frappe.msgprint(_("Could not calculate attendance metrics. Please check attendance rule configuration."), 
                           alert=True, indicator='orange')
     
+    def has_current_positive_friday_pair(self):
+        """Validate only the source for the additional same-day Friday promotion."""
+        start = get_datetime(self.custom_check_in_time)
+        end = get_datetime(self.custom_check_out_time)
+        if not (start.date() == end.date() == getdate(self.attendance_date) and end > start):
+            return False
+        if self.custom_manual_attendance:
+            return True
+        # Match the exact calculated endpoints, never combine stale custom fields
+        # with a partial or identical current pair. Do not change the fetch path.
+        allowed_links = ['', None]
+        if self.name and not self.is_new():
+            allowed_links.append(self.name)
+        return all(frappe.db.exists('Employee Checkin', {
+            'employee': self.employee,
+            'time': time,
+            'log_type': kind,
+            'attendance': ['in', allowed_links],
+        }) for kind, time in (('IN', start), ('OUT', end)))
+
     def update_attendance_fields(self, summary: Dict[str, Any]):
         """Update attendance record with calculated metrics"""
         # Basic calculated fields - cap values to prevent database errors
