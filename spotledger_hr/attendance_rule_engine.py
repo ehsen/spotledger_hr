@@ -307,6 +307,8 @@ class AttendanceRuleEngine:
             if self.is_hours_completed_mode:
                 overtime = self.round_hours_to_grid(overtime)
 
+            if self._final_duration_rounding_enabled():
+                overtime = self._round_final_duration(overtime)
             return max(0, overtime)
 
         return 0
@@ -350,10 +352,57 @@ class AttendanceRuleEngine:
                 if deficiency == 0:
                     return 0
 
-            return 0 if self.rule.allow_negative_hours else deficiency
+            if self.rule.allow_negative_hours:
+                return 0
+            if self._final_duration_rounding_enabled():
+                deficiency = self._round_final_duration(deficiency)
+            return deficiency
 
         return 0
     
+    @staticmethod
+    def _round_final_duration(hours: float) -> float:
+        """Opt-in half-up 30-minute grid, stabilizing float subtraction to seconds.
+
+        Punches have second precision; the legacy Hours Completed helper is unchanged.
+        """
+        seconds = round(max(0, hours) * 3600)
+        return ((seconds + 900) // 1800) / 2
+
+    def _final_duration_rounding_enabled(self) -> bool:
+        """Default-off, exact-rule, finite inclusive date scope; no schema change.
+
+        Site config: spotledger_hr_final_duration_rounding =
+        {"Exact Rule": {"from_date": "2026-07-01", "through_date": "2026-07-31"}}.
+        Only Factory Timing with existing enabled 30/15 rounding is eligible.
+        Invalid configuration fails closed; gazetted returns stay untouched.
+        """
+        enabled = getattr(self.rule, 'enable_overtime_rounding', None)
+        if (getattr(self.rule, 'hours_calculation_mode', None) != 'Factory Timing'
+                or type(enabled) not in (int, bool) or enabled != 1
+                or getattr(self.rule, 'overtime_rounding_interval_minutes', None) != 30
+                or getattr(self.rule, 'overtime_rounding_threshold_minutes', None) != 15):
+            return False
+        config = frappe.conf.get('spotledger_hr_final_duration_rounding')
+        if not isinstance(config, dict):
+            return False
+        scope = config.get(self.rule.name)
+        if not isinstance(scope, dict):
+            return False
+        try:
+            bounds = []
+            for key in ('from_date', 'through_date'):
+                value = scope.get(key)
+                if not isinstance(value, str):
+                    return False
+                parsed = datetime.strptime(value, '%Y-%m-%d').date()
+                if parsed.isoformat() != value:
+                    return False
+                bounds.append(parsed)
+            return bounds[0] <= getdate(self.attendance_date) <= bounds[1]
+        except (ValueError, TypeError):
+            return False
+
     def handle_overnight_shift(self, check_in_time: str, check_out_time: str) -> Tuple[str, str]:
         """
         Handle overnight shifts by adjusting checkout to next day if needed
