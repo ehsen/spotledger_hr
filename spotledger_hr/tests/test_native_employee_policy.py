@@ -64,7 +64,7 @@ class TestRelievingDateCutoff(unittest.TestCase):
         self.assertEqual(self.slip._paid_days(), 31)
 
 
-class TestPayOnAttendanceOnly(unittest.TestCase):
+class TestDeductOnlyForAbsences(unittest.TestCase):
     setUp = fixtures.TestFridayAbsencePolicy.setUp
     tearDown = fixtures.TestFridayAbsencePolicy.tearDown
     change_rule = fixtures.TestFridayAbsencePolicy.change_rule
@@ -73,7 +73,7 @@ class TestPayOnAttendanceOnly(unittest.TestCase):
     add_sources = TestAttendanceStatusPolicy.add_sources
 
     def flag(self, value=1):
-        frappe.db.set_value('Employee', self.employee, 'custom_pay_on_attendance_only', value)
+        frappe.db.set_value('Employee', self.employee, 'custom_deduct_only_absences', value)
         frappe.clear_document_cache('Employee', self.employee)
 
     def short_day(self):

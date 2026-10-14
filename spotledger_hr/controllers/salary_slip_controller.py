@@ -26,7 +26,7 @@ from frappe.utils import flt, getdate
 from hrms.payroll.doctype.salary_slip.salary_slip import SalarySlip
 
 from spotledger_hr.utilities.salary_formula_helpers import (
-    attendance_only_employee,
+    deduct_only_absences_employee,
     compute_hourly_rate,
     friday_absence_policy,
     get_attendance_rule,
@@ -139,7 +139,7 @@ class CustomSalarySlip(SalarySlip):
     # -- attendance sums -----------------------------------------------
 
     def _overtime_hours(self):
-        if attendance_only_employee(self.employee):
+        if deduct_only_absences_employee(self.employee):
             return 0.0
         return flt(
             frappe.db.sql(
@@ -155,7 +155,7 @@ class CustomSalarySlip(SalarySlip):
         )
 
     def _gzt_overtime_hours(self):
-        if attendance_only_employee(self.employee):
+        if deduct_only_absences_employee(self.employee):
             return 0.0
         return flt(
             frappe.db.sql(
@@ -172,7 +172,7 @@ class CustomSalarySlip(SalarySlip):
 
     def _deficiency_hours(self):
         eligible, hours = friday_absence_policy(self.employee, self.start_date, self._effective_end_date())
-        if attendance_only_employee(self.employee):
+        if deduct_only_absences_employee(self.employee):
             return eligible * hours
         return flt(
             frappe.db.sql(

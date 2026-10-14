@@ -11,7 +11,7 @@ from frappe import _
 from frappe.utils import get_datetime, getdate, add_days
 from frappe.exceptions import ValidationError
 from hrms.hr.doctype.attendance.attendance import Attendance
-from spotledger_hr.utilities.salary_formula_helpers import attendance_only_employee
+from spotledger_hr.utilities.salary_formula_helpers import deduct_only_absences_employee
 try:
     from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
 except ImportError:
@@ -101,9 +101,9 @@ class AttendanceController(Attendance):
             # Update attendance record with calculated values
             self.update_attendance_fields(summary)
 
-            # Pay-on-attendance-only employees: a genuine worked day is Present
+            # Deduct-only-for-absences employees: a genuine worked day is Present
             # however short, and its shortfall is not a deficiency.
-            if attendance_only_employee(self.employee) and self.has_genuine_same_day_pair():
+            if deduct_only_absences_employee(self.employee) and self.has_genuine_same_day_pair():
                 self.custom_deficiency_hours = 0
                 if summary.get('regular_hours', 0) > 0 and self.status == 'Absent':
                     self.status = 'Present'

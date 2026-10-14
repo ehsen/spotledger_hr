@@ -35,9 +35,9 @@ def get_attendance_rule(employee):
     return frappe.get_cached_doc("Attendance Rule", rule_name)
 
 
-def attendance_only_employee(employee):
-    """Employee.custom_pay_on_attendance_only: only true absences reduce pay."""
-    return bool(frappe.get_cached_value("Employee", employee, "custom_pay_on_attendance_only"))
+def deduct_only_absences_employee(employee):
+    """Employee.custom_deduct_only_absences: only true absences reduce pay."""
+    return bool(frappe.get_cached_value("Employee", employee, "custom_deduct_only_absences"))
 
 
 def friday_absence_policy(employee, start_date, end_date):
