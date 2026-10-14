@@ -35,6 +35,28 @@ def get_attendance_rule(employee):
     return frappe.get_cached_doc("Attendance Rule", rule_name)
 
 
+def absence_only_employee(employee, start_date=None, end_date=None):
+    """Default-off entitlement, restricted to an explicit inclusive date range.
+
+    Whole salary periods must fit inside the range; overlapping periods fail
+    closed rather than extending entitlement to unapproved days.
+    """
+    scope = (frappe.conf.get('absence_only_employee_periods') or {}).get(employee)
+    if not scope or not start_date:
+        return False
+    first, last = scope.get('from_date'), scope.get('through_date')
+    if not first or not last:
+        return False
+    start, end = getdate(start_date), getdate(end_date or start_date)
+    return getdate(first) <= start <= end <= getdate(last)
+
+
+def payroll_period_end(employee, end_date):
+    """Default-off audited payroll cutoff; inclusive, not a formal departure edit."""
+    cutoff = (frappe.conf.get('payroll_employment_end_dates') or {}).get(employee)
+    return min(getdate(end_date), getdate(cutoff)) if cutoff else end_date
+
+
 def friday_absence_policy(employee, start_date, end_date):
     """Read-only opt-in: distinct submitted Friday absences, never missing work."""
     rule = get_attendance_rule(employee)
@@ -42,6 +64,9 @@ def friday_absence_policy(employee, start_date, end_date):
     effective = rule.get("friday_absence_policy_from_date") if rule else None
     if hours <= 0 or not effective:
         return 0, 0.0
+    end_date = payroll_period_end(employee, end_date)
+    if getdate(end_date) < getdate(start_date):
+        return 0, hours
     count = frappe.db.sql(
         """SELECT COUNT(DISTINCT attendance_date) FROM `tabAttendance`
         WHERE employee=%(employee)s AND docstatus=1 AND status='Absent'

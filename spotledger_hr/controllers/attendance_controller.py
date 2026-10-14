@@ -100,6 +100,12 @@ class AttendanceController(Attendance):
             # Update attendance record with calculated values
             self.update_attendance_fields(summary)
 
+            from spotledger_hr.utilities.salary_formula_helpers import absence_only_employee
+            if absence_only_employee(self.employee, self.attendance_date) and self.has_current_positive_friday_pair():
+                self.custom_deficiency_hours = 0
+                if self.status == 'Absent':
+                    self.status = 'Present'
+
             # Friday's full day can be shorter than the legacy eight-hour threshold.
             # Only add this promotion; leave all other status/metric behavior intact.
             if (self.status == 'Absent' and engine.is_friday

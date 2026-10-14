@@ -26,6 +26,8 @@ from frappe.utils import flt, getdate
 from hrms.payroll.doctype.salary_slip.salary_slip import SalarySlip
 
 from spotledger_hr.utilities.salary_formula_helpers import (
+    absence_only_employee,
+    payroll_period_end,
     compute_hourly_rate,
     friday_absence_policy,
     get_attendance_rule,
@@ -76,7 +78,12 @@ class CustomSalarySlip(SalarySlip):
         client's existing wage-sheet convention (verified against July 2026
         Excel: Days=31 for a Sunday-only-absence employee, Days=30 for one
         with a single additional real absence)."""
+        end = payroll_period_end(self.employee, self.end_date)
         total_days = self._days_in_month()
+        if (frappe.conf.get('payroll_employment_end_dates') or {}).get(self.employee):
+            # Opted-in slips use their own inclusive range, even when their
+            # end is already on or before the audited employment cutoff.
+            total_days = max(0, (getdate(end) - getdate(self.start_date)).days + 1)
         unpaid_absences = frappe.db.sql(
             """
             SELECT COUNT(DISTINCT attendance_date) FROM `tabAttendance`
@@ -86,7 +93,7 @@ class CustomSalarySlip(SalarySlip):
               AND docstatus=1
               AND DAYOFWEEK(attendance_date) != 1  -- MySQL/MariaDB: 1 = Sunday
             """,
-            {"employee": self.employee, "start": self.start_date, "end": self.end_date},
+            {"employee": self.employee, "start": self.start_date, "end": payroll_period_end(self.employee, self.end_date)},
         )[0][0]
         eligible, _ = friday_absence_policy(self.employee, self.start_date, self.end_date)
         return total_days - flt(unpaid_absences) + eligible
@@ -125,6 +132,8 @@ class CustomSalarySlip(SalarySlip):
     # -- attendance sums -----------------------------------------------
 
     def _overtime_hours(self):
+        if absence_only_employee(self.employee, self.start_date, self.end_date):
+            return 0.0
         return flt(
             frappe.db.sql(
                 """
@@ -134,11 +143,13 @@ class CustomSalarySlip(SalarySlip):
                   AND status='Present' AND docstatus=1
                   AND (custom_is_gazetted_holiday=0 OR custom_is_gazetted_holiday IS NULL)
                 """,
-                {"employee": self.employee, "start": self.start_date, "end": self.end_date},
+                {"employee": self.employee, "start": self.start_date, "end": payroll_period_end(self.employee, self.end_date)},
             )[0][0]
         )
 
     def _gzt_overtime_hours(self):
+        if absence_only_employee(self.employee, self.start_date, self.end_date):
+            return 0.0
         return flt(
             frappe.db.sql(
                 """
@@ -148,12 +159,14 @@ class CustomSalarySlip(SalarySlip):
                   AND status='Present' AND docstatus=1
                   AND custom_is_gazetted_holiday=1
                 """,
-                {"employee": self.employee, "start": self.start_date, "end": self.end_date},
+                {"employee": self.employee, "start": self.start_date, "end": payroll_period_end(self.employee, self.end_date)},
             )[0][0]
         )
 
     def _deficiency_hours(self):
         eligible, hours = friday_absence_policy(self.employee, self.start_date, self.end_date)
+        if absence_only_employee(self.employee, self.start_date, self.end_date):
+            return eligible * hours
         return flt(
             frappe.db.sql(
                 """
@@ -162,7 +175,7 @@ class CustomSalarySlip(SalarySlip):
                   AND attendance_date BETWEEN %(start)s AND %(end)s
                   AND status='Present' AND docstatus=1
                 """,
-                {"employee": self.employee, "start": self.start_date, "end": self.end_date},
+                {"employee": self.employee, "start": self.start_date, "end": payroll_period_end(self.employee, self.end_date)},
             )[0][0]
         ) + eligible * hours
 
