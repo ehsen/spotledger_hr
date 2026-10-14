@@ -64,49 +64,56 @@ class TestRelievingDateCutoff(unittest.TestCase):
         self.assertEqual(self.slip._paid_days(), 31)
 
 
-class TestWorkedDayEntitlementRule(unittest.TestCase):
+class TestPayOnAttendanceOnly(unittest.TestCase):
     setUp = fixtures.TestFridayAbsencePolicy.setUp
     tearDown = fixtures.TestFridayAbsencePolicy.tearDown
     change_rule = fixtures.TestFridayAbsencePolicy.change_rule
+    attendance = fixtures.TestFridayAbsencePolicy.attendance
     worked = TestAttendanceStatusPolicy.worked
     add_sources = TestAttendanceStatusPolicy.add_sources
 
-    def short_day(self, manual=False):
-        doc = self.worked(date='2026-07-01', start='08:01:02', end='13:01:00', manual=manual)
-        return doc
+    def flag(self, value=1):
+        frappe.db.set_value('Employee', self.employee, 'custom_pay_on_attendance_only', value)
+        frappe.clear_document_cache('Employee', self.employee)
 
-    def test_default_rule_keeps_short_worked_day_absent(self):
+    def short_day(self):
+        return self.worked(date='2026-07-01', start='08:01:02', end='13:01:00', manual=False)
+
+    def test_unflagged_employee_keeps_short_worked_day_absent(self):
         doc = self.short_day()
         self.add_sources(doc)
         doc.validate()
         self.assertEqual(doc.status, 'Absent')
 
-    def test_rule_promotes_genuine_short_day_and_exempts_shortfall(self):
+    def test_flagged_employee_genuine_short_day_is_present_without_deficiency(self):
+        self.flag()
         doc = self.short_day()
-        self.change_rule(present_on_any_genuine_work=1, allow_negative_hours=1)
         self.add_sources(doc)
         doc.validate()
         self.assertEqual(doc.status, 'Present')
         self.assertEqual(doc.custom_deficiency_hours, 0)
         self.assertGreater(doc.working_hours, 0)
 
-    def test_without_allow_negative_hours_shortfall_is_still_charged(self):
-        doc = self.short_day()
-        self.change_rule(present_on_any_genuine_work=1)
-        self.add_sources(doc)
-        doc.validate()
-        self.assertEqual(doc.status, 'Present')
-        self.assertGreater(doc.custom_deficiency_hours, 0)
-
     def test_stale_pair_is_not_promoted(self):
+        self.flag()
         doc = self.short_day()
-        self.change_rule(present_on_any_genuine_work=1, allow_negative_hours=1)
         doc.validate()
         self.assertEqual(doc.status, 'Absent')
 
     def test_no_times_stays_absent(self):
-        self.change_rule(present_on_any_genuine_work=1, allow_negative_hours=1)
+        self.flag()
         doc = AttendanceController(dict(doctype='Attendance', employee=self.employee,
             attendance_date='2026-07-02', status='Absent', custom_manual_attendance=0))
         doc.validate()
         self.assertEqual(doc.status, 'Absent')
+
+    def test_slip_pays_no_overtime_and_no_shortfall_but_true_absences_count(self):
+        self.attendance('2026-07-02', 'Present', deficiency=3, overtime=4)
+        self.attendance('2026-07-03')  # Friday absence, charged by the rule
+        self.attendance('2026-07-06')  # weekday absence
+        self.assertEqual(self.slip._overtime_hours(), 4)
+        self.flag()
+        self.assertEqual(self.slip._overtime_hours(), 0)
+        self.assertEqual(self.slip._gzt_overtime_hours(), 0)
+        self.assertEqual(self.slip._deficiency_hours(), 5.5)
+        self.assertEqual(self.slip._paid_days(), 31 - 2 + 1)

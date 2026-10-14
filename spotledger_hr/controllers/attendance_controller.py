@@ -11,6 +11,7 @@ from frappe import _
 from frappe.utils import get_datetime, getdate, add_days
 from frappe.exceptions import ValidationError
 from hrms.hr.doctype.attendance.attendance import Attendance
+from spotledger_hr.utilities.salary_formula_helpers import attendance_only_employee
 try:
     from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
 except ImportError:
@@ -100,12 +101,12 @@ class AttendanceController(Attendance):
             # Update attendance record with calculated values
             self.update_attendance_fields(summary)
 
-            # A rule can count any genuine worked day as Present; the shortfall
-            # itself is governed by allow_negative_hours, the pay by the multipliers.
-            if (self.status == 'Absent' and engine.rule.present_on_any_genuine_work
-                    and summary.get('regular_hours', 0) > 0
-                    and self.has_genuine_same_day_pair()):
-                self.status = 'Present'
+            # Pay-on-attendance-only employees: a genuine worked day is Present
+            # however short, and its shortfall is not a deficiency.
+            if attendance_only_employee(self.employee) and self.has_genuine_same_day_pair():
+                self.custom_deficiency_hours = 0
+                if summary.get('regular_hours', 0) > 0 and self.status == 'Absent':
+                    self.status = 'Present'
 
             # Friday's full day can be shorter than the legacy eight-hour threshold.
             # Only add this promotion; leave all other status/metric behavior intact.

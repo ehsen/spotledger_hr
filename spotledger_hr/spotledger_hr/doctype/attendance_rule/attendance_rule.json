@@ -202,13 +202,6 @@
             "default": 0
         },
         {
-            "fieldname": "present_on_any_genuine_work",
-            "fieldtype": "Check",
-            "label": "Present on Any Genuine Work",
-            "default": 0,
-            "description": "When checked, a day with a genuine same-day check-in and check-out is Present however short, instead of needing a full day. Pair with Allow Negative Hours to also exempt the shortfall, and a 0 overtime multiplier to pay no overtime. A day with no real check-in/out stays Absent."
-        },
-        {
             "fieldname": "final_duration_rounding",
             "fieldtype": "Check",
             "label": "Round Final Overtime and Deficiency",
