@@ -370,38 +370,20 @@ class AttendanceRuleEngine:
         return ((seconds + 900) // 1800) / 2
 
     def _final_duration_rounding_enabled(self) -> bool:
-        """Default-off, exact-rule, finite inclusive date scope; no schema change.
+        """Rule-driven: the Attendance Rule opts in and says from which date.
 
-        Site config: spotledger_hr_final_duration_rounding =
-        {"Exact Rule": {"from_date": "2026-07-01", "through_date": "2026-07-31"}}.
-        Only Factory Timing with existing enabled 30/15 rounding is eligible.
-        Invalid configuration fails closed; gazetted returns stay untouched.
+        Only Factory Timing rules with the existing 30/15 minute overtime
+        rounding enabled are eligible; anything else is unchanged.
         """
-        enabled = getattr(self.rule, 'enable_overtime_rounding', None)
-        if (getattr(self.rule, 'hours_calculation_mode', None) != 'Factory Timing'
-                or type(enabled) not in (int, bool) or enabled != 1
-                or getattr(self.rule, 'overtime_rounding_interval_minutes', None) != 30
-                or getattr(self.rule, 'overtime_rounding_threshold_minutes', None) != 15):
+        rule = self.rule
+        if (not getattr(rule, 'final_duration_rounding', 0)
+                or not getattr(rule, 'final_duration_rounding_from_date', None)
+                or getattr(rule, 'hours_calculation_mode', None) != 'Factory Timing'
+                or not getattr(rule, 'enable_overtime_rounding', 0)
+                or getattr(rule, 'overtime_rounding_interval_minutes', None) != 30
+                or getattr(rule, 'overtime_rounding_threshold_minutes', None) != 15):
             return False
-        config = frappe.conf.get('spotledger_hr_final_duration_rounding')
-        if not isinstance(config, dict):
-            return False
-        scope = config.get(self.rule.name)
-        if not isinstance(scope, dict):
-            return False
-        try:
-            bounds = []
-            for key in ('from_date', 'through_date'):
-                value = scope.get(key)
-                if not isinstance(value, str):
-                    return False
-                parsed = datetime.strptime(value, '%Y-%m-%d').date()
-                if parsed.isoformat() != value:
-                    return False
-                bounds.append(parsed)
-            return bounds[0] <= getdate(self.attendance_date) <= bounds[1]
-        except (ValueError, TypeError):
-            return False
+        return getdate(self.attendance_date) >= getdate(rule.final_duration_rounding_from_date)
 
     def handle_overnight_shift(self, check_in_time: str, check_out_time: str) -> Tuple[str, str]:
         """

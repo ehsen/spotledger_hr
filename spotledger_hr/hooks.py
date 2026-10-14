@@ -155,7 +155,10 @@ override_doctype_class = {
 
 doc_events = {
     "Attendance Rule": {
-        "validate": "spotledger_hr.spotledger_hr.doctype.attendance_rule.attendance_rule.validate_friday_absence_policy",
+        "validate": [
+            "spotledger_hr.spotledger_hr.doctype.attendance_rule.attendance_rule.validate_friday_absence_policy",
+            "spotledger_hr.spotledger_hr.doctype.attendance_rule.attendance_rule.validate_final_duration_rounding",
+        ],
     },
 	"Journal Entry": {
 		"before_validate": "spotledger_hr.payroll_overrides.split_party_required_lines",

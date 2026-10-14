@@ -14,5 +14,10 @@ def validate_friday_absence_policy(doc, method=None):
         frappe.throw('Friday absence policy effective date is required when deficiency hours are positive.')
 
 
+def validate_final_duration_rounding(doc, method=None):
+    if doc.get('final_duration_rounding') and not doc.get('final_duration_rounding_from_date'):
+        frappe.throw('Final rounding effective date is required when final rounding is enabled.')
+
+
 class AttendanceRule(Document):
     pass

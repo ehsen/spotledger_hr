@@ -209,6 +209,21 @@
             "description": "When checked, a day with a genuine same-day check-in and check-out is Present however short, instead of needing a full day. Pair with Allow Negative Hours to also exempt the shortfall, and a 0 overtime multiplier to pay no overtime. A day with no real check-in/out stays Absent."
         },
         {
+            "fieldname": "final_duration_rounding",
+            "fieldtype": "Check",
+            "label": "Round Final Overtime and Deficiency",
+            "default": 0,
+            "description": "Factory Timing only, with Enable Overtime Rounding at 30 / 15 minutes. Rounds the final daily overtime and deficiency to the nearest half hour (ties up)."
+        },
+        {
+            "fieldname": "final_duration_rounding_from_date",
+            "fieldtype": "Date",
+            "label": "Final Rounding Effective From",
+            "depends_on": "final_duration_rounding",
+            "mandatory_depends_on": "final_duration_rounding",
+            "description": "Attendance before this date keeps the old calculation."
+        },
+        {
             "fieldname": "tab_weekend",
             "fieldtype": "Tab Break",
             "label": "Weekend & Friday Rules"
