@@ -100,6 +100,13 @@ class AttendanceController(Attendance):
             # Update attendance record with calculated values
             self.update_attendance_fields(summary)
 
+            # A rule can count any genuine worked day as Present; the shortfall
+            # itself is governed by allow_negative_hours, the pay by the multipliers.
+            if (self.status == 'Absent' and engine.rule.present_on_any_genuine_work
+                    and summary.get('regular_hours', 0) > 0
+                    and self.has_genuine_same_day_pair()):
+                self.status = 'Present'
+
             # Friday's full day can be shorter than the legacy eight-hour threshold.
             # Only add this promotion; leave all other status/metric behavior intact.
             if (self.status == 'Absent' and engine.is_friday
@@ -107,7 +114,7 @@ class AttendanceController(Attendance):
                     and engine.get_required_factory_hours() > 0
                     and summary.get('regular_hours', 0) >= engine.get_required_factory_hours()
                     and summary.get('deficiency_hours') == 0
-                    and self.has_current_positive_friday_pair()):
+                    and self.has_genuine_same_day_pair()):
                 self.status = 'Present'
             
         except frappe.ValidationError:
@@ -121,8 +128,8 @@ class AttendanceController(Attendance):
             frappe.msgprint(_("Could not calculate attendance metrics. Please check attendance rule configuration."), 
                           alert=True, indicator='orange')
     
-    def has_current_positive_friday_pair(self):
-        """Validate only the source for the additional same-day Friday promotion."""
+    def has_genuine_same_day_pair(self):
+        """True when the day has a genuine same-day IN/OUT pair, safe to promote Absent to Present."""
         start = get_datetime(self.custom_check_in_time)
         end = get_datetime(self.custom_check_out_time)
         if not (start.date() == end.date() == getdate(self.attendance_date) and end > start):
