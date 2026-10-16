@@ -12,6 +12,7 @@ from frappe.utils import get_datetime, getdate, add_days
 from frappe.exceptions import ValidationError
 from hrms.hr.doctype.attendance.attendance import Attendance
 from spotledger_hr.utilities.salary_formula_helpers import deduct_only_absences_employee
+from spotledger_hr.utilities.employee_utils import absent_blocked_by_holiday
 try:
     from spotledger_hr.attendance_rule_engine import AttendanceRuleEngine
 except ImportError:
@@ -37,7 +38,28 @@ class AttendanceController(Attendance):
         if self.custom_check_in_time and self.custom_check_out_time:
             self.calculate_attendance_metrics()
             self.validate_attendance_data()
-    
+
+        self.validate_absent_on_holiday()
+
+    def validate_absent_on_holiday(self):
+        """Reject Absent on a named holiday unless the Attendance Rule allows it."""
+        if self.status != 'Absent' or not self.employee or not self.attendance_date:
+            return
+
+        blocked, holidays, missing_list = absent_blocked_by_holiday(self.employee, self.attendance_date)
+        if missing_list:
+            frappe.log_error(
+                f"No Holiday List for Employee {self.employee} or its Company; holiday check skipped "
+                f"for Absent on {self.attendance_date}", "Attendance Holiday Check Skipped")
+            frappe.msgprint(
+                _("No Holiday List found for Employee {0} or its Company, so holidays could not be checked.").format(self.employee),
+                alert=True, indicator='orange')
+        elif blocked:
+            frappe.throw(
+                _("{0} is a holiday ({1}) for Employee {2}. Attendance cannot be marked Absent.").format(
+                    self.attendance_date, ", ".join(h for h in holidays if h) or _("Holiday"), self.employee),
+                title=_("Holiday"))
+
     def fetch_checkin_checkout_from_employee_checkin(self):
         """Fetch check-in and check-out times from Employee Checkin records"""
         if not self.employee or not self.attendance_date:
@@ -219,10 +241,10 @@ class AttendanceController(Attendance):
     def trigger_attendance_workflows(self):
         """Trigger additional workflows based on attendance metrics"""
         # Example: Send notifications for excessive overtime or deficiency
-        if hasattr(self, 'custom_overtime_hours') and self.custom_overtime_hours > 4:
+        if hasattr(self, 'custom_overtime_hours') and (self.custom_overtime_hours or 0) > 4:
             self.send_overtime_notification()
         
-        if hasattr(self, 'custom_deficiency_hours') and self.custom_deficiency_hours > 2:
+        if hasattr(self, 'custom_deficiency_hours') and (self.custom_deficiency_hours or 0) > 2:
             self.send_deficiency_notification()
     
     def send_overtime_notification(self):

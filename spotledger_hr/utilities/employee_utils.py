@@ -49,3 +49,29 @@ def is_holiday(employee, date=None, raise_exception=True, only_non_weekly=False,
 		return len(holidays) > 0, holidays
 
 	return len(holidays) > 0
+
+def absent_blocked_by_holiday(employee, date):
+	"""
+	Decide whether an Absent mark is invalid for `employee` on `date` because it falls on a
+	named (non weekly-off) holiday of the employee's Holiday List (company default as fallback).
+	Weekly offs are deliberately excluded: they are handled by the payroll rules.
+
+	Returns (blocked, holidays, missing_list):
+	  blocked      - True if Absent must not be recorded
+	  holidays     - descriptions of the matching holidays
+	  missing_list - True if neither the employee nor the company has a Holiday List
+	"""
+	if not get_holiday_list_for_employee(employee, raise_exception=False):
+		return False, [], True
+
+	is_off, holidays = is_holiday(
+		employee, date, raise_exception=False, only_non_weekly=True, with_description=True
+	)
+	if not is_off:
+		return False, [], False
+
+	rule = frappe.get_cached_value("Employee", employee, "custom_attendance_rule")
+	if rule and frappe.get_cached_value("Attendance Rule", rule, "allow_absent_on_holiday"):
+		return False, holidays, False
+
+	return True, holidays, False

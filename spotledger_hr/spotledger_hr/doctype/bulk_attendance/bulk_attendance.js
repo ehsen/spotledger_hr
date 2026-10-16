@@ -965,7 +965,7 @@ frappe.ui.form.on('Bulk Attendance Item', {
 		const has_checkin = row.check_in_date && row.check_in_time;
 		const has_checkout = row.check_out_date && row.check_out_time;
 
-		let new_status = 'Absent';
+		let new_status = row.status === 'Holiday' ? 'Holiday' : 'Absent';
 		if (has_checkin && has_checkout) {
 			new_status = 'Present';
 		} else if (has_checkin || has_checkout) {

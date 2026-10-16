@@ -48,7 +48,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Present\nError\nAbsent"
+   "options": "Present\nError\nAbsent\nHoliday"
   },
   {
    "fieldname": "day",

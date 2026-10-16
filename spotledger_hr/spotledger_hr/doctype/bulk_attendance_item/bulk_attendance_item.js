@@ -8,7 +8,8 @@ frappe.listview_settings['Bulk Attendance Item'] = {
 		const status_colors = {
 			"Present": "green",
 			"Error": "orange",
-			"Absent": "red"
+			"Absent": "red",
+			"Holiday": "blue"
 		};
 
 		return [__(doc.status), status_colors[doc.status] || "grey", "status,=," + doc.status];
@@ -19,7 +20,8 @@ frappe.listview_settings['Bulk Attendance Item'] = {
 			const colors = {
 				"Present": "green",
 				"Error": "orange",
-				"Absent": "red"
+				"Absent": "red",
+				"Holiday": "blue"
 			};
 
 			return `<span class="indicator-pill ${colors[value] || 'grey'} small">${__(value)}</span>`;
@@ -44,7 +46,7 @@ frappe.listview_settings['Bulk Attendance Item'] = {
 			label: __("New Status"),
 			fieldname: "status",
 			fieldtype: "Select",
-			options: "Present\nError\nAbsent",
+			options: "Present\nError\nAbsent\nHoliday",
 			reqd: 1
 		}, function(values) {
 			frappe.call({

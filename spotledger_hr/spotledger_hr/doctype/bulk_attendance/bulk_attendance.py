@@ -7,6 +7,7 @@ from frappe.model.document import Document
 from frappe.utils import getdate, get_datetime, cstr, get_time
 from datetime import datetime, timedelta
 import json
+from spotledger_hr.utilities.employee_utils import absent_blocked_by_holiday
 
 
 class BulkAttendance(Document):
@@ -158,7 +159,7 @@ class BulkAttendance(Document):
                     "checkout_docname": checkout_doc,
                     "original_checkin_time": checkin,
                     "original_checkout_time": checkout,
-                    "status": doc.get_status(checkin, checkout)
+                    "status": doc.get_status(checkin, checkout, employee_id, date)
                 })
 
         # Sort by employee and date
@@ -173,12 +174,15 @@ class BulkAttendance(Document):
 
         return {"message": f"Successfully loaded {len(doc.attendance_data)} attendance records", "count": len(doc.attendance_data)}
 
-    def get_status(self, checkin, checkout):
-        """Determine attendance status"""
+    def get_status(self, checkin, checkout, employee=None, day=None):
+        """Determine attendance status. With employee and day given, a day with no
+        check-ins that is a named holiday is "Holiday" rather than "Absent"."""
         if checkin and checkout:
             return "Present"
         elif checkin or checkout:
             return "Error"
+        elif employee and day and absent_blocked_by_holiday(employee, day)[0]:
+            return "Holiday"
         else:
             return "Absent"
 
@@ -306,7 +310,9 @@ class BulkAttendance(Document):
             # Update item status
             item.status = self.get_status(
                 get_datetime(f"{item.check_in_date} {item.check_in_time}") if (item.check_in_date and item.check_in_time) else None,
-                get_datetime(f"{item.check_out_date} {item.check_out_time}") if (item.check_out_date and item.check_out_time) else None
+                get_datetime(f"{item.check_out_date} {item.check_out_time}") if (item.check_out_date and item.check_out_time) else None,
+                item.employee,
+                item.day
             )
 
             # Update original times for reference
@@ -356,6 +362,7 @@ class BulkAttendance(Document):
         successful = 0
         failed = 0
         duplicates = 0
+        skipped_holidays = 0
         failed_records = []
         duplicate_records = []
 
@@ -369,6 +376,11 @@ class BulkAttendance(Document):
         # Process each attendance item
         for i, item in enumerate(doc.attendance_data):
             try:
+                # Holidays need no attendance record
+                if item.status == "Holiday":
+                    skipped_holidays += 1
+                    continue
+
                 # Check for existing attendance if skip_duplicates is enabled
                 if skip_duplicates:
                     existing_attendance = frappe.db.exists("Attendance", {
@@ -459,6 +471,7 @@ class BulkAttendance(Document):
             "successful": successful,
             "failed": failed,
             "duplicates": duplicates,
+            "skipped_holidays": skipped_holidays,
             "failed_records": failed_records,
             "duplicate_records": duplicate_records
         }
