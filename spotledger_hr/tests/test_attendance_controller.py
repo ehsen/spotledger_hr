@@ -46,7 +46,8 @@ class TestAttendanceController(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         # Create test holiday list
@@ -75,6 +76,7 @@ class TestAttendanceController(FrappeTestCase):
                     "company": emp_data["company"],
                     "custom_attendance_rule": emp_data["custom_attendance_rule"],
                     "gender": emp_data["gender"],
+                    "custom_father_name": "Test Parent",
                     "date_of_birth": emp_data["date_of_birth"],
                     "date_of_joining": emp_data["date_of_joining"],
                     "status": emp_data["status"],
@@ -247,7 +249,8 @@ class TestAttendanceControllerAPI(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Holiday List", "Test Holiday List"):
@@ -267,6 +270,7 @@ class TestAttendanceControllerAPI(FrappeTestCase):
                     "company": emp_data["company"],
                     "custom_attendance_rule": emp_data["custom_attendance_rule"],
                     "gender": emp_data["gender"],
+                    "custom_father_name": "Test Parent",
                     "date_of_birth": emp_data["date_of_birth"],
                     "date_of_joining": emp_data["date_of_joining"],
                     "status": emp_data["status"],
@@ -447,7 +451,8 @@ class TestAttendanceControllerIntegration(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Holiday List", "Test Holiday List"):
@@ -467,6 +472,7 @@ class TestAttendanceControllerIntegration(FrappeTestCase):
                     "company": emp_data["company"],
                     "custom_attendance_rule": emp_data["custom_attendance_rule"],
                     "gender": emp_data["gender"],
+                    "custom_father_name": "Test Parent",
                     "date_of_birth": emp_data["date_of_birth"],
                     "date_of_joining": emp_data["date_of_joining"],
                     "status": emp_data["status"],

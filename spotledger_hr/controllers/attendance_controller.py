@@ -101,6 +101,63 @@ class AttendanceController(Attendance):
         if check_out_record:
             self.custom_check_out_time = check_out_record.time
     
+    # A tail is a post-midnight continuation of the previous evening's session.
+    TAIL_PREV_DAY_LAST_OUT_FROM = "23:00:00"
+    TAIL_LATEST_START = "01:00:00"
+    TAIL_DEDUPE_SECONDS = 120
+
+    def get_overnight_tail(self, engine):
+        """Return (tail_hours, primary_in) for a cross-midnight tail, else (0, None).
+
+        Only genuine, complete, unlinked punch pairs count. The previous day must
+        have ended at/after 23:00, the tail must start by 01:00 and finish before
+        the day's main session begins (and before factory start). Same-type punches
+        within two minutes are one punch (biometric duplicates).
+        """
+        if (self.custom_manual_attendance or not self.employee or not self.attendance_date
+                or not engine._overnight_tail_credit_enabled()):
+            return 0, None
+
+        date = getdate(self.attendance_date)
+        day_start = get_datetime(f"{date} 00:00:00")
+        allowed_links = ['', None]
+        if self.name and not self.is_new():
+            allowed_links.append(self.name)  # keep re-saves stable
+        punches = frappe.get_all(
+            "Employee Checkin",
+            filters={"employee": self.employee, "attendance": ["in", allowed_links],
+                     "time": ["between", [f"{date} 00:00:00", f"{date} 23:59:59"]]},
+            fields=["time", "log_type"], order_by="time asc")
+
+        merged = []  # collapse runs of the same type; keep first IN, last OUT
+        for p in punches:
+            t = get_datetime(p.time)
+            if merged and merged[-1][0] == p.log_type and (t - merged[-1][1]).total_seconds() <= self.TAIL_DEDUPE_SECONDS:
+                if p.log_type == "OUT":
+                    merged[-1] = (p.log_type, t)
+                continue
+            merged.append((p.log_type, t))
+
+        if len(merged) < 3 or merged[0][0] != "IN" or merged[1][0] != "OUT" or merged[2][0] != "IN":
+            return 0, None
+        tail_in, tail_out, primary_in = merged[0][1], merged[1][1], merged[2][1]
+        factory_start = get_datetime(f"{date} {engine.rule.factory_start_time}")
+        if not (tail_out > tail_in
+                and tail_in <= get_datetime(f"{date} {self.TAIL_LATEST_START}")
+                and tail_out <= primary_in and tail_out <= factory_start):
+            return 0, None
+
+        prev = frappe.get_all(
+            "Employee Checkin",
+            filters={"employee": self.employee, "log_type": "OUT",
+                     "time": ["between", [f"{add_days(date, -1)} 00:00:00", f"{add_days(date, -1)} 23:59:59"]]},
+            fields=["time"], order_by="time desc", limit=1)
+        if not prev or get_datetime(prev[0].time) < get_datetime(
+                f"{add_days(date, -1)} {self.TAIL_PREV_DAY_LAST_OUT_FROM}"):
+            return 0, None
+
+        return (tail_out - tail_in).total_seconds() / 3600, primary_in
+
     def calculate_attendance_metrics(self):
         """Calculate comprehensive attendance metrics using Attendance Rule Engine"""
         if AttendanceRuleEngine is None:
@@ -117,8 +174,15 @@ class AttendanceController(Attendance):
             check_in_time = get_datetime(self.custom_check_in_time).strftime('%H:%M:%S')
             check_out_time = get_datetime(self.custom_check_out_time).strftime('%H:%M:%S')
 
+            # Cross-midnight tail (opt-in per rule): credited as overtime, and the
+            # primary session then starts at its own IN rather than the tail's.
+            tail_hours, primary_in = self.get_overnight_tail(engine)
+            if tail_hours:
+                check_in_time = primary_in.strftime('%H:%M:%S')
+
             # Calculate comprehensive attendance summary
-            summary = engine.calculate_attendance_summary(check_in_time, check_out_time)
+            summary = (engine.calculate_attendance_summary(check_in_time, check_out_time, tail_hours)
+                       if tail_hours else engine.calculate_attendance_summary(check_in_time, check_out_time))
             
             # Update attendance record with calculated values
             self.update_attendance_fields(summary)

@@ -158,6 +158,7 @@ doc_events = {
         "validate": [
             "spotledger_hr.spotledger_hr.doctype.attendance_rule.attendance_rule.validate_friday_absence_policy",
             "spotledger_hr.spotledger_hr.doctype.attendance_rule.attendance_rule.validate_final_duration_rounding",
+            "spotledger_hr.spotledger_hr.doctype.attendance_rule.attendance_rule.validate_overnight_tail_credit",
         ],
     },
 	"Journal Entry": {

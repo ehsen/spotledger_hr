@@ -268,10 +268,15 @@ class AttendanceRuleEngine:
         else:
             return net_hours_worked
     
-    def calculate_overtime(self, check_in_time: str, check_out_time: str) -> float:
+    def calculate_overtime(self, check_in_time: str, check_out_time: str,
+                           extra_overtime_hours: float = 0) -> float:
         """
         Calculate overtime hours based on attendance rules
         Overtime = Net hours worked - Required working hours
+
+        extra_overtime_hours is credited overtime that lies outside the
+        primary session (cross-midnight tail). It joins the overtime before
+        final rounding so the half-hour grid is applied once, to the sum.
         """
         total_hours = self.calculate_total_hours(check_in_time, check_out_time)
 
@@ -288,7 +293,7 @@ class AttendanceRuleEngine:
         # and would make this field not comparable to raw hours on a manual
         # attendance card.
         if self.is_gazetted:
-            return net_hours_worked
+            return net_hours_worked + extra_overtime_hours
 
         # Get required factory hours (this is NET working hours required)
         required_working_hours = self.get_required_factory_hours()
@@ -307,9 +312,16 @@ class AttendanceRuleEngine:
             if self.is_hours_completed_mode:
                 overtime = self.round_hours_to_grid(overtime)
 
+            overtime += extra_overtime_hours
             if self._final_duration_rounding_enabled():
                 overtime = self._round_final_duration(overtime)
             return max(0, overtime)
+
+        if extra_overtime_hours > 0:
+            # Primary session has no excess, but the tail is still overtime.
+            if self._final_duration_rounding_enabled():
+                return self._round_final_duration(extra_overtime_hours)
+            return extra_overtime_hours
 
         return 0
 
@@ -385,6 +397,18 @@ class AttendanceRuleEngine:
             return False
         return getdate(self.attendance_date) >= getdate(rule.final_duration_rounding_from_date)
 
+    def _overnight_tail_credit_enabled(self) -> bool:
+        """Rule-driven opt-in, same shape as _final_duration_rounding_enabled().
+
+        Factory Timing only; attendance before the effective date is unchanged.
+        """
+        rule = self.rule
+        if (not getattr(rule, 'overnight_tail_credit', 0)
+                or not getattr(rule, 'overnight_tail_credit_from_date', None)
+                or getattr(rule, 'hours_calculation_mode', None) != 'Factory Timing'):
+            return False
+        return getdate(self.attendance_date) >= getdate(rule.overnight_tail_credit_from_date)
+
     def handle_overnight_shift(self, check_in_time: str, check_out_time: str) -> Tuple[str, str]:
         """
         Handle overnight shifts by adjusting checkout to next day if needed
@@ -458,10 +482,17 @@ class AttendanceRuleEngine:
 
         return floor_minutes / 60
 
-    def calculate_attendance_summary(self, check_in_time: str, check_out_time: str) -> Dict[str, Union[float, bool, str]]:
+    def calculate_attendance_summary(self, check_in_time: str, check_out_time: str,
+                                     extra_overtime_hours: float = 0) -> Dict[str, Union[float, bool, str]]:
         """
         Calculate complete attendance summary with all metrics
+
+        extra_overtime_hours: cross-midnight tail credit, ignored unless the
+        rule opts in (so default-off output is identical to before).
         """
+        if not (extra_overtime_hours and extra_overtime_hours > 0 and self._overnight_tail_credit_enabled()):
+            extra_overtime_hours = 0
+
         # Handle overnight shifts
         adjusted_check_in, adjusted_check_out = self.handle_overnight_shift(check_in_time, check_out_time)
 
@@ -495,8 +526,10 @@ class AttendanceRuleEngine:
         # Calculate all metrics
         total_hours = self.calculate_total_hours(final_check_in, final_check_out)
         regular_hours = self.calculate_regular_hours(final_check_in, final_check_out)
-        overtime_hours = self.calculate_overtime(final_check_in, final_check_out)
+        overtime_hours = (self.calculate_overtime(final_check_in, final_check_out, extra_overtime_hours)
+                          if extra_overtime_hours else self.calculate_overtime(final_check_in, final_check_out))
         deficiency_hours = self.calculate_deficiency(final_check_in, final_check_out)
+        total_hours += extra_overtime_hours
         
         # Calculate actual break duration (in seconds, convert to minutes)
         break_duration_seconds = self.get_break_duration(final_check_in, final_check_out)

@@ -52,7 +52,8 @@ class TestAttendanceRuleEngine(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         # Create test holiday list
@@ -81,6 +82,7 @@ class TestAttendanceRuleEngine(FrappeTestCase):
                     "company": emp_data["company"],
                     "custom_attendance_rule": emp_data["custom_attendance_rule"],
                     "gender": emp_data["gender"],
+                    "custom_father_name": "Test Parent",
                     "date_of_birth": emp_data["date_of_birth"],
                     "date_of_joining": emp_data["date_of_joining"],
                     "status": emp_data["status"],
@@ -179,7 +181,8 @@ class TestGracePeriodLogic(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -253,7 +256,8 @@ class TestBreakCalculations(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -317,7 +321,8 @@ class TestOvertimeCalculations(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -389,7 +394,8 @@ class TestDeficiencyCalculations(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -461,7 +467,8 @@ class TestFridayLogic(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -523,7 +530,8 @@ class TestOvernightShifts(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -583,7 +591,8 @@ class TestCompleteAttendanceCalculations(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -654,7 +663,8 @@ class TestEdgeCases(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
         
         if not frappe.db.exists("Attendance Rule", "Test Company"):
@@ -737,7 +747,8 @@ class TestHoursCompletedMode(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
 
         if not frappe.db.exists("Attendance Rule", "Test Company Hours Completed"):
@@ -860,7 +871,8 @@ class TestHoursCompletedRoundingBug(FrappeTestCase):
                 "doctype": "Company",
                 "company_name": "Test Company",
                 "abbr": "TC",
-                "default_currency": "USD"
+                "default_currency": "USD",
+                "country": "Pakistan"
             }).insert()
 
         if not frappe.db.exists("Attendance Rule", "Test Company Hours Completed Rounding"):

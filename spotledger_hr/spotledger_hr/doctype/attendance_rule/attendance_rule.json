@@ -217,6 +217,21 @@
             "description": "Attendance before this date keeps the old calculation."
         },
         {
+            "fieldname": "overnight_tail_credit",
+            "fieldtype": "Check",
+            "label": "Credit Cross-Midnight Overtime Tail",
+            "default": 0,
+            "description": "Factory Timing only. When the previous day's last checkout was at or after 23:00, a complete IN/OUT pair that starts by 01:00 and ends before the day's main session is added to that day's overtime."
+        },
+        {
+            "fieldname": "overnight_tail_credit_from_date",
+            "fieldtype": "Date",
+            "label": "Tail Credit Effective From",
+            "depends_on": "overnight_tail_credit",
+            "mandatory_depends_on": "overnight_tail_credit",
+            "description": "Attendance before this date keeps the old calculation."
+        },
+        {
             "fieldname": "tab_weekend",
             "fieldtype": "Tab Break",
             "label": "Weekend & Friday Rules"
