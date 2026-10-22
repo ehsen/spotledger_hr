@@ -247,13 +247,65 @@ class AttendanceRuleEngine:
         total_seconds = time_diff_in_seconds(dt_check_out, dt_check_in)
         return total_seconds / 3600  # Convert to hours
     
-    def calculate_regular_hours(self, check_in_time: str, check_out_time: str) -> float:
+    # Unpaid intra-day gaps (out then back in) of at least this long are not worked time.
+    SESSION_GAP_THRESHOLD_MINUTES = 30
+
+    def _session_gap_deduction_enabled(self) -> bool:
+        """Factory Timing only; Hours Completed is never touched."""
+        return getattr(self.rule, 'hours_calculation_mode', None) == 'Factory Timing'
+
+    @staticmethod
+    def _overlap_seconds(gaps, start: datetime, end: datetime) -> float:
+        """Seconds of the (out, in) gaps that fall inside [start, end]."""
+        total = 0.0
+        for gap_out, gap_in in gaps:
+            lo, hi = max(gap_out, start), min(gap_in, end)
+            if hi > lo:
+                total += (hi - lo).total_seconds()
+        return total
+
+    def get_net_worked_inputs(self, check_in_time: str, check_out_time: str,
+                              session_gaps=None) -> Tuple[float, float]:
+        """Single source of (total_hours, break_seconds) for every metric.
+
+        total_hours is elapsed presence, less unpaid intra-day gaps of at
+        least SESSION_GAP_THRESHOLD_MINUTES (clipped to the check-in/out window,
+        so an overnight gap before the primary session never counts).
+        break_seconds is the usual break, reduced by the part of the break
+        window that a deducted gap already covers, so a gap and the break are
+        never deducted on top of each other (a gap 12:00-12:45 against a
+        12:30-13:00 break leaves 15 minutes of break).
+        With no gaps the result is exactly the legacy calculation.
+        """
+        total_hours = self.calculate_total_hours(check_in_time, check_out_time)
+        break_seconds = self.get_break_duration(check_in_time, check_out_time)
+        if not session_gaps or not self._session_gap_deduction_enabled():
+            return total_hours, break_seconds
+
+        threshold = self.SESSION_GAP_THRESHOLD_MINUTES * 60
+        gaps = [(o, i) for o, i in session_gaps if (i - o).total_seconds() >= threshold]
+        if not gaps:
+            return total_hours, break_seconds
+
+        dt_in = get_datetime(check_in_time if " " in check_in_time else f"{self.attendance_date} {check_in_time}")
+        dt_out = get_datetime(check_out_time if " " in check_out_time else f"{self.attendance_date} {check_out_time}")
+        gap_seconds = self._overlap_seconds(gaps, dt_in, dt_out)
+        if not gap_seconds:
+            return total_hours, break_seconds
+
+        break_times = self.get_break_times()
+        covered = self._overlap_seconds(
+            gaps, max(break_times['start'], dt_in), min(break_times['end'], dt_out))
+        return total_hours - gap_seconds / 3600, max(0, break_seconds - covered)
+
+    def calculate_regular_hours(self, check_in_time: str, check_out_time: str,
+                                session_gaps=None) -> float:
         """
         Calculate regular working hours after break deduction
         Regular hours are capped at the required working hours
         """
-        total_hours = self.calculate_total_hours(check_in_time, check_out_time)
-        break_duration_seconds = self.get_break_duration(check_in_time, check_out_time)
+        total_hours, break_duration_seconds = self.get_net_worked_inputs(
+            check_in_time, check_out_time, session_gaps)
         break_hours = break_duration_seconds / 3600
         # Calculate net hours worked (after break deduction)
         net_hours_worked = total_hours - break_hours
@@ -269,7 +321,7 @@ class AttendanceRuleEngine:
             return net_hours_worked
     
     def calculate_overtime(self, check_in_time: str, check_out_time: str,
-                           extra_overtime_hours: float = 0) -> float:
+                           extra_overtime_hours: float = 0, session_gaps=None) -> float:
         """
         Calculate overtime hours based on attendance rules
         Overtime = Net hours worked - Required working hours
@@ -278,10 +330,8 @@ class AttendanceRuleEngine:
         primary session (cross-midnight tail). It joins the overtime before
         final rounding so the half-hour grid is applied once, to the sum.
         """
-        total_hours = self.calculate_total_hours(check_in_time, check_out_time)
-
-        # Calculate net hours after break deduction
-        break_duration_seconds = self.get_break_duration(check_in_time, check_out_time)
+        total_hours, break_duration_seconds = self.get_net_worked_inputs(
+            check_in_time, check_out_time, session_gaps)
         break_hours = break_duration_seconds / 3600
         net_hours_worked = total_hours - break_hours
 
@@ -326,7 +376,8 @@ class AttendanceRuleEngine:
         return 0
 
     
-    def calculate_deficiency(self, check_in_time: str, check_out_time: str) -> float:
+    def calculate_deficiency(self, check_in_time: str, check_out_time: str,
+                             session_gaps=None) -> float:
         """
         Calculate deficiency hours (shortfall from required hours)
         Deficiency = Required working hours - Net hours worked
@@ -334,10 +385,8 @@ class AttendanceRuleEngine:
         if self.is_gazetted:
             return 0
         
-        total_hours = self.calculate_total_hours(check_in_time, check_out_time)
-        
-        # Calculate net hours after break deduction
-        break_duration_seconds = self.get_break_duration(check_in_time, check_out_time)
+        total_hours, break_duration_seconds = self.get_net_worked_inputs(
+            check_in_time, check_out_time, session_gaps)
         break_hours = break_duration_seconds / 3600
         net_hours_worked = total_hours - break_hours
         
@@ -483,12 +532,14 @@ class AttendanceRuleEngine:
         return floor_minutes / 60
 
     def calculate_attendance_summary(self, check_in_time: str, check_out_time: str,
-                                     extra_overtime_hours: float = 0) -> Dict[str, Union[float, bool, str]]:
+                                     extra_overtime_hours: float = 0, session_gaps=None) -> Dict[str, Union[float, bool, str]]:
         """
         Calculate complete attendance summary with all metrics
 
         extra_overtime_hours: cross-midnight tail credit, ignored unless the
         rule opts in (so default-off output is identical to before).
+        session_gaps: [(out_datetime, in_datetime)] unpaid intra-day gaps,
+        Factory Timing only; None/empty gives the legacy result.
         """
         if not (extra_overtime_hours and extra_overtime_hours > 0 and self._overnight_tail_credit_enabled()):
             extra_overtime_hours = 0
@@ -524,15 +575,17 @@ class AttendanceRuleEngine:
         final_check_out = adjusted_check_out_dt.strftime('%Y-%m-%d %H:%M:%S')
         
         # Calculate all metrics
-        total_hours = self.calculate_total_hours(final_check_in, final_check_out)
-        regular_hours = self.calculate_regular_hours(final_check_in, final_check_out)
-        overtime_hours = (self.calculate_overtime(final_check_in, final_check_out, extra_overtime_hours)
-                          if extra_overtime_hours else self.calculate_overtime(final_check_in, final_check_out))
-        deficiency_hours = self.calculate_deficiency(final_check_in, final_check_out)
+        total_hours, break_duration_seconds = self.get_net_worked_inputs(
+            final_check_in, final_check_out, session_gaps)
+        regular_hours = self.calculate_regular_hours(final_check_in, final_check_out, session_gaps)
+        overtime_hours = (self.calculate_overtime(final_check_in, final_check_out, extra_overtime_hours,
+                                                  session_gaps)
+                          if extra_overtime_hours else
+                          self.calculate_overtime(final_check_in, final_check_out, session_gaps=session_gaps))
+        deficiency_hours = self.calculate_deficiency(final_check_in, final_check_out, session_gaps)
         total_hours += extra_overtime_hours
         
-        # Calculate actual break duration (in seconds, convert to minutes)
-        break_duration_seconds = self.get_break_duration(final_check_in, final_check_out)
+        # Actual break duration (in seconds, convert to minutes)
         break_duration_minutes = int(break_duration_seconds / 60)
         return {
             'total_hours': total_hours,

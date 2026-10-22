@@ -158,6 +158,55 @@ class AttendanceController(Attendance):
 
         return (tail_out - tail_in).total_seconds() / 3600, primary_in
 
+    def get_session_gaps(self, engine, primary_in=None):
+        """Return [(out, in)] unpaid gaps between sessions inside the primary session.
+
+        Day's unlinked checkins are collapsed into runs of the same type (an IN
+        run keeps its first IN, an OUT run its last OUT), so biometric
+        duplicates never invent a session. A trailing unmatched IN is not a
+        session. Only gaps that begin at/after the primary session's IN count;
+        the overnight break after a cross-midnight tail pair is excluded
+        (primary_in is the tail-adjusted IN when a tail is credited). The engine
+        applies the minimum-length threshold and the window clipping.
+        """
+        if (self.custom_manual_attendance or not self.employee or not self.attendance_date
+                or not engine._session_gap_deduction_enabled()):
+            return []
+
+        date = getdate(self.attendance_date)
+        allowed_links = ['', None]
+        if self.name and not self.is_new():
+            allowed_links.append(self.name)  # keep re-saves stable
+        punches = frappe.get_all(
+            "Employee Checkin",
+            filters={"employee": self.employee, "attendance": ["in", allowed_links],
+                     "time": ["between", [f"{date} 00:00:00", f"{date} 23:59:59"]]},
+            fields=["time", "log_type"], order_by="time asc")
+
+        runs = []  # [log_type, first_time, last_time]
+        for p in punches:
+            t = get_datetime(p.time)
+            if runs and runs[-1][0] == p.log_type:
+                runs[-1][2] = t
+            else:
+                runs.append([p.log_type, t, t])
+
+        sessions = []  # (in, out)
+        i = 0
+        while i < len(runs) and runs[i][0] != "IN":
+            i += 1  # leading OUTs belong to no session
+        while i + 1 < len(runs):
+            sessions.append((runs[i][1], runs[i + 1][2]))
+            i += 2
+
+        gaps = []
+        for (_, prev_out), (next_in, _) in zip(sessions, sessions[1:]):
+            if primary_in is not None and prev_out < primary_in:
+                continue
+            if next_in > prev_out:
+                gaps.append((prev_out, next_in))
+        return gaps
+
     def calculate_attendance_metrics(self):
         """Calculate comprehensive attendance metrics using Attendance Rule Engine"""
         if AttendanceRuleEngine is None:
@@ -180,9 +229,13 @@ class AttendanceController(Attendance):
             if tail_hours:
                 check_in_time = primary_in.strftime('%H:%M:%S')
 
+            # Unpaid mid-day gaps between genuine sessions (Factory Timing).
+            session_gaps = self.get_session_gaps(engine, primary_in)
+
             # Calculate comprehensive attendance summary
-            summary = (engine.calculate_attendance_summary(check_in_time, check_out_time, tail_hours)
-                       if tail_hours else engine.calculate_attendance_summary(check_in_time, check_out_time))
+            kwargs = {'session_gaps': session_gaps} if session_gaps else {}
+            summary = (engine.calculate_attendance_summary(check_in_time, check_out_time, tail_hours, **kwargs)
+                       if tail_hours else engine.calculate_attendance_summary(check_in_time, check_out_time, **kwargs))
             
             # Update attendance record with calculated values
             self.update_attendance_fields(summary)
