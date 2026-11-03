@@ -117,3 +117,55 @@ class TestDeductOnlyForAbsences(unittest.TestCase):
         self.assertEqual(self.slip._gzt_overtime_hours(), 0)
         self.assertEqual(self.slip._deficiency_hours(), 5.5)
         self.assertEqual(self.slip._paid_days(), 31 - 2 + 1)
+
+
+class TestJoiningDateCutoff(unittest.TestCase):
+    setUp = fixtures.TestFridayAbsencePolicy.setUp
+    tearDown = fixtures.TestFridayAbsencePolicy.tearDown
+    attendance = fixtures.TestFridayAbsencePolicy.attendance
+
+    def setup_period(self, joining=None, relieving=None):
+        self.slip.start_date, self.slip.end_date = '2026-09-01', '2026-09-30'
+        if joining:
+            frappe.db.set_value('Employee', self.employee, 'date_of_joining', joining)
+        if relieving:
+            frappe.db.set_value('Employee', self.employee, 'relieving_date', relieving)
+        frappe.clear_document_cache('Employee', self.employee)
+
+    def test_full_month_unchanged(self):
+        self.setup_period()
+        self.assertEqual(self.slip._paid_days(), 30)
+        self.attendance('2026-09-08')
+        self.assertEqual(self.slip._paid_days(), 29)
+
+    def test_joined_mid_month_with_one_absence(self):
+        self.setup_period(joining='2026-09-07')
+        self.attendance('2026-09-19')
+        self.attendance('2026-09-13')  # Sunday stays paid
+        self.assertEqual(self.slip._paid_days(), 23)
+
+    def test_joined_11th_no_absence(self):
+        self.setup_period(joining='2026-09-11')
+        self.assertEqual(self.slip._paid_days(), 20)
+
+    def test_joined_on_first_and_last_day(self):
+        self.setup_period(joining='2026-09-01')
+        self.assertEqual(self.slip._paid_days(), 30)
+        self.setup_period(joining='2026-09-30')
+        self.assertEqual(self.slip._paid_days(), 1)
+
+    def test_relieved_only_and_joined_and_relieved(self):
+        self.setup_period(relieving='2026-09-20')
+        self.assertEqual(self.slip._paid_days(), 20)
+        self.setup_period(joining='2026-09-07')
+        self.assertEqual(self.slip._paid_days(), 14)
+
+    def test_joining_after_period_pays_nothing(self):
+        self.setup_period(joining='2026-10-05')
+        self.assertEqual(self.slip._paid_days(), 0)
+
+    def test_pre_joining_sunday_not_counted_and_days_in_month_kept(self):
+        self.setup_period(joining='2026-09-07')  # Sunday 6 Sep is before joining
+        self.assertEqual(self.slip._paid_days(), 24)
+        self.assertEqual(self.slip._days_in_month(), 30)
+        self.assertEqual(self.slip._pre_joining_days(), 6)

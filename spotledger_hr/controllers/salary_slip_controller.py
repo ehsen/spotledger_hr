@@ -63,7 +63,10 @@ class CustomSalarySlip(SalarySlip):
         # — every component on Breeze Wages has depends_on_payment_days=0
         # — it only changes what's displayed/printed/reported.
         self.payment_days = self._paid_days()
-        self.absent_days = self._days_in_month() - self.payment_days
+        # Days before joining are neither paid nor absent.
+        self.absent_days = max(
+            self._days_in_month() - self._pre_joining_days() - self.payment_days, 0
+        ) if self._joins_within_period() else self._days_in_month() - self.payment_days
 
     # -- calendar / attendance rule -----------------------------------
 
@@ -76,6 +79,20 @@ class CustomSalarySlip(SalarySlip):
         (inclusive) when it falls inside the period, else the period end."""
         return getdate(self.actual_end_date)
 
+    def _joins_within_period(self):
+        joining = self.joining_date
+        return bool(joining) and getdate(self.start_date) < joining <= getdate(self.end_date)
+
+    def _effective_start_date(self):
+        """First paid day of the slip: the native Employee.date_of_joining
+        when it falls inside the period, else the period start."""
+        return getdate(self.actual_start_date)
+
+    def _pre_joining_days(self):
+        if not self._joins_within_period():
+            return 0
+        return (self._effective_start_date() - getdate(self.start_date)).days
+
     def _paid_days(self):
         """Total calendar days in the period minus real (non-Sunday) absences.
         Sundays are a paid weekly off and are never deducted, matching the
@@ -85,12 +102,19 @@ class CustomSalarySlip(SalarySlip):
 
         A slip for an employee relieved inside the period stops at the
         relieving date, as in core HRMS: later Sundays and Friday credits
-        are not paid."""
+        are not paid. Likewise it starts at date_of_joining when that falls
+        inside the period: earlier days (Sundays included) are not paid.
+        The two clamps compose."""
+        joining = self.joining_date
+        if joining and joining > getdate(self.end_date):
+            return 0
+        start = self._effective_start_date()
         end = self._effective_end_date()
         total_days = self._days_in_month()
         relieving = self.relieving_date
-        if relieving and getdate(self.start_date) <= relieving <= getdate(self.end_date):
-            total_days = (end - getdate(self.start_date)).days + 1
+        relieved = relieving and getdate(self.start_date) <= relieving <= getdate(self.end_date)
+        if relieved or self._joins_within_period():
+            total_days = (end - start).days + 1
         unpaid_absences = frappe.db.sql(
             """
             SELECT COUNT(DISTINCT attendance_date) FROM `tabAttendance`
@@ -100,9 +124,9 @@ class CustomSalarySlip(SalarySlip):
               AND docstatus=1
               AND DAYOFWEEK(attendance_date) != 1  -- MySQL/MariaDB: 1 = Sunday
             """,
-            {"employee": self.employee, "start": self.start_date, "end": end},
+            {"employee": self.employee, "start": start, "end": end},
         )[0][0]
-        eligible, _ = friday_absence_policy(self.employee, self.start_date, end)
+        eligible, _ = friday_absence_policy(self.employee, start, end)
         return total_days - flt(unpaid_absences) + eligible
 
     def _get_attendance_rule(self):
