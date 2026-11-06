@@ -63,6 +63,7 @@ class CustomSalarySlip(SalarySlip):
         # — every component on Breeze Wages has depends_on_payment_days=0
         # — it only changes what's displayed/printed/reported.
         self.payment_days = self._paid_days()
+        self.leave_without_pay = self._lwp_days()
         # Days before joining are neither paid nor absent.
         self.absent_days = max(
             self._days_in_month() - self._pre_joining_days() - self.payment_days, 0
@@ -93,12 +94,45 @@ class CustomSalarySlip(SalarySlip):
             return 0
         return (self._effective_start_date() - getdate(self.start_date)).days
 
+    def _lwp_window(self):
+        """(start, end) of the days the slip pays for, or None when the
+        employee joins after the period."""
+        joining = self.joining_date
+        if joining and joining > getdate(self.end_date):
+            return None
+        return self._effective_start_date(), self._effective_end_date()
+
+    def _lwp_days(self):
+        """Distinct dates inside the paid window covered by a submitted
+        Attendance 'On Leave' of a Leave Type flagged is_lwp. Any weekday
+        counts: Sundays, Fridays and named holidays included."""
+        window = self._lwp_window()
+        if not window:
+            return 0
+        return flt(
+            frappe.db.sql(
+                """
+                SELECT COUNT(DISTINCT attendance_date) FROM `tabAttendance`
+                WHERE employee=%(employee)s
+                  AND attendance_date BETWEEN %(start)s AND %(end)s
+                  AND status='On Leave'
+                  AND docstatus=1
+                  AND leave_type IN (SELECT name FROM `tabLeave Type` WHERE is_lwp=1)
+                """,
+                {"employee": self.employee, "start": window[0], "end": window[1]},
+            )[0][0]
+        )
+
     def _paid_days(self):
         """Total calendar days in the period minus real (non-Sunday) absences.
         Sundays are a paid weekly off and are never deducted, matching the
         client's existing wage-sheet convention (verified against July 2026
         Excel: Days=31 for a Sunday-only-absence employee, Days=30 for one
         with a single additional real absence).
+
+        Dates covered by a submitted Leave Without Pay (Leave Type is_lwp)
+        are unpaid whatever the weekday, Sundays and holidays included.
+        Other leave types stay paid.
 
         A slip for an employee relieved inside the period stops at the
         relieving date, as in core HRMS: later Sundays and Friday credits
@@ -127,7 +161,8 @@ class CustomSalarySlip(SalarySlip):
             {"employee": self.employee, "start": start, "end": end},
         )[0][0]
         eligible, _ = friday_absence_policy(self.employee, start, end)
-        return total_days - flt(unpaid_absences) + eligible
+        paid = total_days - flt(unpaid_absences) - self._lwp_days() + eligible
+        return max(0, paid)
 
     def _get_attendance_rule(self):
         return get_attendance_rule(self.employee)

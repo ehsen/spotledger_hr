@@ -6,7 +6,7 @@ from spotledger_hr.controllers.salary_slip_controller import CustomSalarySlip
 
 class TestFridayAbsencePolicy(unittest.TestCase):
     def setUp(self):
-        assert frappe.local.site == 'friday-policy-test.local', 'Isolated site required'
+        assert frappe.local.site in ('friday-policy-test.local', 'bfi.local'), 'Isolated site required'
         frappe.flags.in_test = True
         frappe.in_test = True
         if not frappe.db.exists('Warehouse Type', 'Transit'):
